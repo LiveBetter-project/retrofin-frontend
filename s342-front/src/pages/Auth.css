@@ -1,0 +1,233 @@
+.auth-page {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 24px 0;
+}
+
+.auth-container {
+  position: relative;
+  width: min(980px, 100%);
+  height: 520px;
+  background: #e7e7e7;
+  border: 2px solid var(--lb-pink);
+  border-radius: 56px;
+  overflow: hidden;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.18);
+}
+
+.form-container {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 50%;
+  transition: transform 0.6s ease-in-out, opacity 0.35s ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+/* --- IMPORTANT: prevent the “second form behind” effect --- */
+.sign-in-container {
+  left: 0;
+  z-index: 2;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sign-up-container {
+  left: 0;
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.auth-container.right-panel-active .sign-in-container {
+  transform: translateX(100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.auth-container.right-panel-active .sign-up-container {
+  transform: translateX(100%);
+  opacity: 1;
+  z-index: 5;
+  pointer-events: auto;
+}
+
+.auth-form {
+  width: 100%;
+  max-width: 360px;
+}
+
+.auth-title {
+  font-weight: 800;
+  font-style: italic;
+  font-size: 34px;
+  text-align: center;
+  margin: 0 0 18px 0;
+  color: var(--lb-primary-dark);
+}
+
+.auth-subtitle {
+  font-weight: 800;
+  font-style: italic;
+  font-size: 34px;
+  margin: 0 0 18px 0;
+  color: var(--lb-white);
+}
+
+.auth-body {
+  color: rgba(255, 255, 255, 0.92);
+  font-style: italic;
+  font-weight: 500;
+  text-align: center;
+  margin: 0 0 22px 0;
+}
+
+/* Inputs: pill, white, floating label behavior */
+.auth-input .MuiOutlinedInput-root {
+  border-radius: 999px;
+  background: var(--lb-white);
+}
+
+.auth-input .MuiOutlinedInput-notchedOutline {
+  border-color: transparent;
+}
+
+.auth-input .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(53, 53, 53, 0.14);
+}
+
+.auth-input .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(53, 53, 53, 0.22);
+}
+
+.auth-input .MuiInputLabel-root {
+  font-style: italic;
+  font-weight: 600;
+}
+
+.auth-link {
+  font-style: italic;
+  font-weight: 700;
+  color: var(--lb-primary-dark);
+}
+
+/* Buttons: use brandbook green; force white text */
+.auth-submit {
+  border-radius: 999px !important;
+  padding: 12px 0 !important;
+  font-style: italic !important;
+  font-weight: 800 !important;
+  background: var(--lb-green) !important;
+  color: var(--lb-white) !important;
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.18) !important;
+}
+
+.auth-submit:hover {
+  filter: brightness(0.92);
+}
+
+/* Overlay slider */
+.overlay-container {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 50%;
+  height: 100%;
+  overflow: hidden;
+  transition: transform 0.6s ease-in-out;
+  z-index: 10;
+}
+
+.auth-container.right-panel-active .overlay-container {
+  transform: translateX(-100%);
+}
+
+.overlay {
+  position: relative;
+  left: -100%;
+  height: 100%;
+  width: 200%;
+  background: var(--lb-pink);
+  transition: transform 0.6s ease-in-out;
+}
+
+.auth-container.right-panel-active .overlay {
+  transform: translateX(50%);
+}
+
+.overlay-panel {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 64px;
+}
+
+.overlay-left {
+  transform: translateX(-20%);
+}
+
+.auth-container.right-panel-active .overlay-left {
+  transform: translateX(0);
+}
+
+.overlay-right {
+  right: 0;
+}
+
+.auth-container.right-panel-active .overlay-right {
+  transform: translateX(20%);
+}
+
+.overlay-action {
+  border-radius: 999px !important;
+  padding: 12px 0 !important;
+  width: 260px !important;
+  font-style: italic !important;
+  font-weight: 800 !important;
+  background: var(--lb-green) !important;
+  color: var(--lb-white) !important; /* fixes black text */
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.18) !important;
+}
+
+.overlay-action:hover {
+  filter: brightness(0.92);
+}
+
+@media (max-width: 900px) {
+  .auth-container {
+    height: auto;
+    border-radius: 28px;
+  }
+
+  .overlay-container {
+    display: none;
+  }
+
+  .form-container {
+    position: relative;
+    width: 100%;
+    transform: none !important;
+  }
+
+  .sign-up-container {
+    display: none;
+  }
+
+  .auth-container.right-panel-active .sign-in-container {
+    display: none;
+  }
+
+  .auth-container.right-panel-active .sign-up-container {
+    display: flex;
+  }
+}
