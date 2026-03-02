@@ -26,7 +26,7 @@ const Auth = () => {
   const auth = useAuth();
 
   // Login state
-  const [loginEmail, setLoginEmail] = useState("");
+  const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
@@ -34,6 +34,8 @@ const Auth = () => {
   // Register state
   const [regUsername, setRegUsername] = useState("");
   const [regEmail, setRegEmail] = useState("");
+  const [regFirstName, setRegFirstName] = useState("");
+  const [regLastName, setRegLastName] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [regConfirm, setRegConfirm] = useState("");
   const [regError, setRegError] = useState("");
@@ -44,22 +46,22 @@ const Auth = () => {
 
   const loginPayload = useMemo(
     () => ({
-      username: loginEmail,
-      email: loginEmail,
+      username: loginUsername,
       password: loginPassword,
     }),
-    [loginEmail, loginPassword]
+    [loginUsername, loginPassword]
   );
 
   const registerPayload = useMemo(
     () => ({
       username: regUsername,
       email: regEmail,
+      first_name: regFirstName,
+      last_name: regLastName,
       password: regPassword,
       password2: regConfirm,
-      confirm_password: regConfirm,
     }),
-    [regUsername, regEmail, regPassword, regConfirm]
+    [regUsername, regEmail, regFirstName, regLastName, regPassword, regConfirm]
   );
 
   const handleLogin = async (e) => {
@@ -124,10 +126,10 @@ const Auth = () => {
             <Stack spacing={2}>
               <TextInput
                 className="auth-input"
-                name="email"
-                label="Email"
-                value={loginEmail}
-                onChange={(e) => setLoginEmail(e.target.value)}
+                name="username"
+                label="Username"
+                value={loginUsername}
+                onChange={(e) => setLoginUsername(e.target.value)}
                 autoComplete="username"
                 required
               />
@@ -201,6 +203,28 @@ const Auth = () => {
                 autoComplete="new-password"
                 required
               />
+
+              <Box sx={{ display: "flex", gap: 2 }}>
+                <TextInput
+                  className="auth-input"
+                  name="first_name"
+                  label="First Name"
+                  value={regFirstName}
+                  onChange={(e) => setRegFirstName(e.target.value)}
+                  autoComplete="given-name"
+                  sx={{ flex: 1 }}
+                />
+
+                <TextInput
+                  className="auth-input"
+                  name="last_name"
+                  label="Last Name"
+                  value={regLastName}
+                  onChange={(e) => setRegLastName(e.target.value)}
+                  autoComplete="family-name"
+                  sx={{ flex: 1 }}
+                />
+              </Box>
 
               <PasswordInput
                 className="auth-input"
