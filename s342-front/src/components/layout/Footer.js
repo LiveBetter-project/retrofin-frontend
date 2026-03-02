@@ -72,7 +72,7 @@ const Footer = () => {
             component="img"
             src={LifeLogo}
             alt="LIFE Programme"
-            sx={{ height: 34, width: "auto", flexShrink: 0 }}
+            sx={{ height: 45, width: "auto", flexShrink: 0 }}
           />
           <Typography sx={{ color: "text.secondary", fontSize: 14, lineHeight: 1.5 }}>
             Co-funded by the European Union under project CODENAME. Views and opinions expressed are however those of the author(s) only and do not necessarily reflect those of the European Union or CINEA. Neither the European Union nor the granting authority can be held responsible for them.
