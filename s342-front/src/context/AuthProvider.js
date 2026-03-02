@@ -1,52 +1,85 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import axiosInstance from "../api/http";
+import API from "../api/api";
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
 const AuthProvider = ({ children }) => {
-  const [token, setToken_] = useState(localStorage.getItem("token"));
-  const [refresh_token, setRefreshToken_] = useState(localStorage.getItem('refresh_token'))
+  const [token, setToken_] = useState(() => localStorage.getItem("token"));
+  const [refresh_token, setRefreshToken_] = useState(() =>
+    localStorage.getItem("refresh_token")
+  );
 
-  const setToken = (newToken) => {
-    setToken_(newToken);
-  };
+  const setToken = (newToken) => setToken_(newToken || null);
+  const setRefreshToken = (newToken) => setRefreshToken_(newToken || null);
 
-  const setRefreshToken = (newToken) => {
-    setRefreshToken_(newToken);
-  };
-
+  // Persist to storage + keep axios header consistent (http.js also enforces this per-request)
   useEffect(() => {
-    if (token) {
-      axiosInstance.defaults.headers.common["Authorization"] = "Bearer " + token;
-      localStorage.setItem('token',token);
-    } else {
-      delete axiosInstance.defaults.headers.common["Authorization"];
-      localStorage.removeItem('token')
-    }
-    if (refresh_token) {
-      localStorage.setItem('refresh_token', refresh_token);
-    } else {
-      localStorage.removeItem('refresh_token')
-    }
+    if (token) localStorage.setItem("token", token);
+    else localStorage.removeItem("token");
+
+    if (refresh_token) localStorage.setItem("refresh_token", refresh_token);
+    else localStorage.removeItem("refresh_token");
   }, [token, refresh_token]);
+
+  // Sync when http.js refresh/logout runs (same-tab)
+  useEffect(() => {
+    const handler = (e) => {
+      const detail = e?.detail || {};
+      if (detail.type === "logout") {
+        setToken_(null);
+        setRefreshToken_(null);
+      }
+      if (detail.type === "tokens") {
+        if ("token" in detail) setToken_(detail.token || null);
+        if ("refresh_token" in detail) setRefreshToken_(detail.refresh_token || null);
+      }
+    };
+
+    window.addEventListener("auth:change", handler);
+    return () => window.removeEventListener("auth:change", handler);
+  }, []);
+
+  const login = async (credentials) => {
+    const data = await API.login(credentials);
+    setToken(data?.token);
+    setRefreshToken(data?.refresh_token);
+    return data;
+  };
+
+  const register = async (userData) => {
+    const data = await API.register(userData);
+    if (data?.token) setToken(data.token);
+    if (data?.refresh_token) setRefreshToken(data.refresh_token);
+    return data;
+  };
+
+  const logout = async () => {
+    try {
+      if (refresh_token) await API.logout(refresh_token);
+    } finally {
+      setToken(null);
+      setRefreshToken(null);
+      window.dispatchEvent(new CustomEvent("auth:change", { detail: { type: "logout" } }));
+    }
+  };
 
   const contextValue = useMemo(
     () => ({
       token,
-      setToken,
       refresh_token,
+      isAuthenticated: Boolean(token),
+      setToken,
       setRefreshToken,
+      login,
+      register,
+      logout,
     }),
-    [token,refresh_token]
+    [token, refresh_token]
   );
 
-  return (
-    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 };
 
-export const useAuth = () => {
-  return useContext(AuthContext);
-};
+export const useAuth = () => useContext(AuthContext);
 
 export default AuthProvider;

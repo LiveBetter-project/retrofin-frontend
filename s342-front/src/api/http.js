@@ -6,13 +6,22 @@ const axiosInstance = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-const AUTH_ENDPOINTS = ["/auth/login/", "/auth/register/", "/auth/refresh/"];
+const AUTH_ENDPOINTS = [
+  "/auth/login/",
+  "/auth/register/",
+  "/auth/refresh/",
+  "/auth/logout/",
+];
 
 const isAuthEndpoint = (url = "") =>
   AUTH_ENDPOINTS.some((endpoint) => url.includes(endpoint));
 
-// prevent  concurrent refresh races
+// prevent concurrent refresh races
 let refreshPromise = null;
+
+const notifyAuthChange = (detail) => {
+  window.dispatchEvent(new CustomEvent("auth:change", { detail }));
+};
 
 const setTokens = ({ token, refresh_token }) => {
   if (token) {
@@ -22,13 +31,14 @@ const setTokens = ({ token, refresh_token }) => {
   if (refresh_token) {
     localStorage.setItem("refresh_token", refresh_token);
   }
+  notifyAuthChange({ type: "tokens", token, refresh_token });
 };
 
-const clearTokensAndRedirect = () => {
+const clearTokens = () => {
   localStorage.removeItem("token");
   localStorage.removeItem("refresh_token");
   delete axiosInstance.defaults.headers.common["Authorization"];
-  window.location.assign("/login");
+  notifyAuthChange({ type: "logout" });
 };
 
 // ensure requests always carry the current token
@@ -48,28 +58,20 @@ axiosInstance.interceptors.response.use(
     const status = error?.response?.status;
     const requestUrl = config?.url || "";
 
-    if (!config || isAuthEndpoint(requestUrl)) {
-      return Promise.reject(error);
-    }
+    if (!config || isAuthEndpoint(requestUrl)) return Promise.reject(error);
+    if (status !== 401) return Promise.reject(error);
 
-    if (status !== 401) {
-      // if (status === 403) clearTokensAndRedirect();
-      return Promise.reject(error);
-    }
-
-    // prevent infinite retry 
+    // prevent infinite retry
     if (config._retry) {
-      clearTokensAndRedirect();
+      clearTokens();
       return Promise.reject(error);
     }
     config._retry = true;
 
-    // start refresh if not already in progress
     if (!refreshPromise) {
       const refresh_token = localStorage.getItem("refresh_token");
-
       if (!refresh_token) {
-        clearTokensAndRedirect();
+        clearTokens();
         return Promise.reject(error);
       }
 
@@ -82,7 +84,7 @@ axiosInstance.interceptors.response.use(
           return newToken;
         })
         .catch((refreshErr) => {
-          clearTokensAndRedirect();
+          clearTokens();
           throw refreshErr;
         })
         .finally(() => {
@@ -90,9 +92,7 @@ axiosInstance.interceptors.response.use(
         });
     }
 
-    // wait for the refresh to resolve and retry the original request
     const newToken = await refreshPromise;
-
     config.headers = config.headers ?? {};
     config.headers.Authorization = `Bearer ${newToken}`;
 

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { RouterProvider, createBrowserRouter } from "react-router-dom";
+import { RouterProvider, createBrowserRouter, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthProvider";
 import { ProtectedRoute } from "./ProtectedRoute";
 import Login from "../pages/Login";
@@ -19,7 +19,11 @@ const routesForAuthenticatedOnly = [
     element: <ProtectedRoute />,
     children: [
       {
-        path: "/",
+        index: true,
+        element: <Dashboard />,
+      },
+      {
+        path: "dashboard",
         element: <Dashboard />,
       },
     ],
@@ -46,6 +50,10 @@ const Routes = () => {
         ...routesForPublic,
         ...(!token ? routesForNotAuthenticatedOnly : []),
         ...routesForAuthenticatedOnly,
+        {
+          path: "*",
+          element: <Navigate to={token ? "/" : "/login"} replace />,
+        },
       ]),
     [token]
   );
