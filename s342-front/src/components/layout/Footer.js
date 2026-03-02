@@ -8,7 +8,7 @@ import {
   Typography,
 } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
-import LifeLogo from "../../assets/life-logo.svg";
+import LifeLogo from "../../assets/life_logo.jpg";
 
 const Footer = () => {
   return (
