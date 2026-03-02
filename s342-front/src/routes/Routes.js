@@ -2,19 +2,17 @@ import { useMemo } from "react";
 import { RouterProvider, createBrowserRouter, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthProvider";
 import { ProtectedRoute } from "./ProtectedRoute";
-import Login from "../pages/Login";
-import Register from "../pages/Register";
 import Dashboard from "../pages/Dashboard";
 import AppLayout from "../components/layout/AppLayout";
+import Auth from "../pages/Auth";
 
 const routesForPublic = [
   { path: "/home", element: <div>Home Page</div> },
-
-  // placeholders so footer links don't bounce to wildcard
   { path: "/about", element: <div>About (placeholder)</div> },
   { path: "/contact", element: <div>Contact us (placeholder)</div> },
   { path: "/legal", element: <div>Legal (placeholder)</div> },
   { path: "/privacy", element: <div>Privacy and Cookie Policy (placeholder)</div> },
+  { path: "/forgot-password", element: <div>Forgot password (placeholder)</div> },
 ];
 
 const routesForAuthenticatedOnly = [
@@ -29,8 +27,9 @@ const routesForAuthenticatedOnly = [
 ];
 
 const routesForNotAuthenticatedOnly = [
-  { path: "/login", element: <Login /> },
-  { path: "/register", element: <Register /> },
+  { path: "/auth", element: <Auth /> },
+  { path: "/login", element: <Navigate to="/auth?mode=login" replace /> },
+  { path: "/register", element: <Navigate to="/auth?mode=register" replace /> },
 ];
 
 const Routes = () => {
@@ -46,7 +45,7 @@ const Routes = () => {
             ...routesForPublic,
             ...(!token ? routesForNotAuthenticatedOnly : []),
             ...routesForAuthenticatedOnly,
-            { path: "*", element: <Navigate to={token ? "/" : "/login"} replace /> },
+            { path: "*", element: <Navigate to={token ? "/" : "/auth?mode=login"} replace /> },
           ],
         },
       ]),
