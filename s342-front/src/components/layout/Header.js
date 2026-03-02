@@ -24,21 +24,23 @@ const Header = () => {
           <Box
             component={RouterLink}
             to="/"
-            sx={{ display: "flex", alignItems: "center", gap: 1.5 }}
+            sx={{ display: "flex", alignItems: "center", gap: 0 }}
           >
-            <Logo height={34} />
-            <Typography
-              sx={{ fontWeight: 700, color: "secondary.main", lineHeight: 1 }}
-            >
-              LiveBetter
-            </Typography>
+            <Logo height={52} />
           </Box>
 
           <Box sx={{ flex: 1 }} />
 
-          <Typography sx={{ fontWeight: 600, color: "text.primary" }}>
+          <Typography
+            sx={{
+                fontWeight: 800,
+                fontStyle: "italic",
+                fontSize: 20,
+                color: "text.primary",
+            }}
+            >
             Risk Assessment Simulator
-          </Typography>
+            </Typography>
         </Container>
       </Toolbar>
     </AppBar>
