@@ -5,12 +5,16 @@ import { ProtectedRoute } from "./ProtectedRoute";
 import Login from "../pages/Login";
 import Register from "../pages/Register";
 import Dashboard from "../pages/Dashboard";
+import AppLayout from "../components/layout/AppLayout";
 
 const routesForPublic = [
-  {
-    path: "/home",
-    element: <div>Home Page</div>,
-  },
+  { path: "/home", element: <div>Home Page</div> },
+
+  // placeholders so footer links don't bounce to wildcard
+  { path: "/about", element: <div>About (placeholder)</div> },
+  { path: "/contact", element: <div>Contact us (placeholder)</div> },
+  { path: "/legal", element: <div>Legal (placeholder)</div> },
+  { path: "/privacy", element: <div>Privacy and Cookie Policy (placeholder)</div> },
 ];
 
 const routesForAuthenticatedOnly = [
@@ -18,27 +22,15 @@ const routesForAuthenticatedOnly = [
     path: "/",
     element: <ProtectedRoute />,
     children: [
-      {
-        index: true,
-        element: <Dashboard />,
-      },
-      {
-        path: "dashboard",
-        element: <Dashboard />,
-      },
+      { index: true, element: <Dashboard /> },
+      { path: "dashboard", element: <Dashboard /> },
     ],
   },
 ];
 
 const routesForNotAuthenticatedOnly = [
-  {
-    path: "/login",
-    element: <Login />,
-  },
-  {
-    path: "/register",
-    element: <Register />,
-  },
+  { path: "/login", element: <Login /> },
+  { path: "/register", element: <Register /> },
 ];
 
 const Routes = () => {
@@ -47,12 +39,15 @@ const Routes = () => {
   const router = useMemo(
     () =>
       createBrowserRouter([
-        ...routesForPublic,
-        ...(!token ? routesForNotAuthenticatedOnly : []),
-        ...routesForAuthenticatedOnly,
         {
-          path: "*",
-          element: <Navigate to={token ? "/" : "/login"} replace />,
+          path: "/",
+          element: <AppLayout />,
+          children: [
+            ...routesForPublic,
+            ...(!token ? routesForNotAuthenticatedOnly : []),
+            ...routesForAuthenticatedOnly,
+            { path: "*", element: <Navigate to={token ? "/" : "/login"} replace /> },
+          ],
         },
       ]),
     [token]
