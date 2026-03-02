@@ -18,7 +18,7 @@ const Footer = () => {
         mt: 6,
         borderTop: "1px solid",
         borderColor: "divider",
-        bgcolor: "background.paper",
+        bgcolor: (t) => t.palette.grey[100],
       }}
     >
       <Container maxWidth="lg" sx={{ py: 4 }}>
