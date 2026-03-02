@@ -3,7 +3,7 @@ import { createTheme } from '@mui/material/styles';
 const BRAND = {
   primaryDark: '#353535',   // P–01
   pink: '#F03157',          // S–01
-  green: '#61EF59',         // S–02
+  green: '#278A21',         // S–02
   sand: '#ECC896',          // S–03
   white: '#FFFFFF',
 };
