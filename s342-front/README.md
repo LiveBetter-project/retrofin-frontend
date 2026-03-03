@@ -61,7 +61,7 @@ Each scheme has its own **required inputs**, and the UI should dynamically revea
   * **Per-building results** (Version 2): detailed results per building
 
 ## Endpoints of Version 1
-Base: `/api/v1`
+Base: `/api`
 All resources are scoped to the authenticated user (server enforces `user_id` ownership).
 
 ### Experiments (Dashboard + navigation)
