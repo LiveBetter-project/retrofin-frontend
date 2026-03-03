@@ -2,9 +2,13 @@ import { useMemo } from "react";
 import { RouterProvider, createBrowserRouter, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthProvider";
 import { ProtectedRoute } from "./ProtectedRoute";
-import Dashboard from "../pages/Dashboard";
+
 import AppLayout from "../components/layout/AppLayout";
 import Auth from "../pages/Auth";
+import Dashboard from "../pages/Dashboard";
+import ExperimentInput from "../pages/ExperimentInput";
+import ExperimentOutput from "../pages/ExperimentOutput";
+import Settings from "../pages/Settings";
 
 const routesForPublic = [
   { path: "/home", element: <div>Home Page</div> },
@@ -22,6 +26,13 @@ const routesForAuthenticatedOnly = [
     children: [
       { index: true, element: <Dashboard /> },
       { path: "dashboard", element: <Dashboard /> },
+
+      // Core app flow
+      { path: "experiments/:experimentId/input", element: <ExperimentInput /> },
+      { path: "experiments/:experimentId/output", element: <ExperimentOutput /> },
+
+      // Drawer link
+      { path: "settings", element: <Settings /> },
     ],
   },
 ];
