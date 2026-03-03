@@ -196,7 +196,7 @@ const Dashboard = () => {
                 borderRadius: 2,
                 border: "2px solid",
                 borderColor: "success.main",
-                bgcolor: "transparent",
+                bgcolor: "white",
                 px: 2,
                 py: 1.25,
               }}
