@@ -1,8 +1,9 @@
-import { ThemeProvider } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
-import AuthProvider from './context/AuthProvider';
-import Routes from './routes/Routes';
-import theme from './theme';
+import { ThemeProvider } from "@mui/material/styles";
+import CssBaseline from "@mui/material/CssBaseline";
+
+import AuthProvider from "./context/AuthProvider";
+import Routes from "./routes/Routes";
+import theme from "./theme";
 
 function App() {
   return (
