@@ -466,8 +466,8 @@ const SchemeInfoBox = ({ schemeKey, compact = false }) => {
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: compact ? "1fr" : { xs: "1fr", md: "1fr 1fr" },
-          columnGap: 3,
+          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+          columnGap: 1,
           rowGap: 1,
           mt: 0.5,
         }}
