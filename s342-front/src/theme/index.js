@@ -1,11 +1,16 @@
 import { createTheme } from '@mui/material/styles';
 
 const BRAND = {
-  primaryDark: '#353535',   // P–01
-  pink: '#F03157',          // S–01
-  green: '#278A21',         // S–02
-  sand: '#ECC896',          // S–03
+  primaryDark: '#353535',
+  pink: '#F03157',
+  green: '#278A21',
+  sand: '#ECC896',
   white: '#FFFFFF',
+};
+
+const SURFACE = {
+  backgroundDefault: '#F7F4EF',
+  backgroundPaper: '#FFFFFF',
 };
 
 const theme = createTheme({
@@ -27,8 +32,8 @@ const theme = createTheme({
       main: BRAND.pink,
     },
     background: {
-      default: BRAND.white,
-      paper: BRAND.white,
+      default: SURFACE.backgroundDefault,
+      paper: SURFACE.backgroundPaper,
     },
     text: {
       primary: BRAND.primaryDark,
@@ -57,8 +62,11 @@ const theme = createTheme({
   components: {
     MuiCssBaseline: {
       styleOverrides: {
+        html: {
+          backgroundColor: SURFACE.backgroundDefault,
+        },
         body: {
-          backgroundColor: BRAND.white,
+          backgroundColor: SURFACE.backgroundDefault,
           color: BRAND.primaryDark,
         },
       },

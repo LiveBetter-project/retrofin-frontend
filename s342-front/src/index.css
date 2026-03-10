@@ -6,6 +6,10 @@
   --lb-green: #278A21;
   --lb-sand: #ECC896;
   --lb-white: #FFFFFF;
+
+  --lb-bg-top: #FBFAF7;
+  --lb-bg-base: #F7F4EF;
+  --lb-bg-bottom: #F3EFEB;
 }
 
 *,
@@ -17,12 +21,13 @@
 html,
 body {
   height: 100%;
+  background: var(--lb-bg-base);
 }
 
 body {
   margin: 0;
   font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-  background: var(--lb-white);
+  background: linear-gradient(180deg, var(--lb-bg-top) 0%, var(--lb-bg-base) 48%, var(--lb-bg-bottom) 100%);
   color: var(--lb-primary-dark);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
