@@ -9,11 +9,13 @@ import {
   CircularProgress,
   Divider,
   Grid,
+  Grow,
   IconButton,
   Paper,
   Stack,
   Typography,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
@@ -352,13 +354,149 @@ const coerceNumber = (v, kind) => {
   return kind === "integer" ? Math.trunc(n) : n;
 };
 
-const pillButtonSx = {
+const glassGreenButtonSx = (theme) => ({
+  color: theme.palette.common.white,
+  background: `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.dark} 100%)`,
+  border: "1px solid",
+  borderColor: alpha(theme.palette.common.white, 0.24),
   borderRadius: "999px",
-  px: 3,
+  px: 3.2,
+  py: 1.1,
+  fontWeight: 800,
+  backdropFilter: "blur(14px)",
+  boxShadow: `0 14px 32px ${alpha(theme.palette.success.main, 0.3)}`,
+  transition: "transform 180ms ease, box-shadow 180ms ease, filter 180ms ease",
+  "&:hover": {
+    background: `linear-gradient(135deg, ${theme.palette.success.dark} 0%, ${theme.palette.success.main} 100%)`,
+    transform: "translateY(-2px)",
+    boxShadow: `0 18px 36px ${alpha(theme.palette.success.main, 0.36)}`,
+    filter: "brightness(1.03)",
+  },
+  "&.Mui-disabled": {
+    color: alpha(theme.palette.common.white, 0.8),
+    background: alpha(theme.palette.success.main, 0.45),
+  },
+});
+
+const glassGhostButtonSx = (theme) => ({
+  color: theme.palette.text.primary,
+  background: `linear-gradient(135deg, ${alpha(theme.palette.common.white, 0.74)} 0%, ${alpha(
+    theme.palette.secondary.main,
+    0.12,
+  )} 100%)`,
+  border: "1px solid",
+  borderColor: alpha(theme.palette.common.white, 0.5),
+  borderRadius: "999px",
+  px: 3.2,
+  py: 1.1,
+  fontWeight: 800,
+  backdropFilter: "blur(14px)",
+  boxShadow: `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.62)}, 0 10px 24px ${alpha(
+    theme.palette.common.black,
+    0.08,
+  )}`,
+  transition:
+    "transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease",
+  "&:hover": {
+    transform: "translateY(-2px)",
+    borderColor: alpha(theme.palette.success.main, 0.28),
+    boxShadow: `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.68)}, 0 14px 28px ${alpha(
+      theme.palette.common.black,
+      0.12,
+    )}`,
+  },
+});
+
+const glassPanelSx = (theme) => ({
+  borderRadius: 3,
+  px: 2,
+  py: 1.35,
+  border: "1px solid",
+  borderColor: alpha(theme.palette.common.white, 0.45),
+  background: `linear-gradient(135deg, ${alpha(theme.palette.common.white, 0.72)} 0%, ${alpha(
+    theme.palette.success.main,
+    0.08,
+  )} 100%)`,
+  backdropFilter: "blur(16px)",
+  boxShadow: `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.58)}, 0 12px 30px ${alpha(
+    theme.palette.common.black,
+    0.08,
+  )}`,
+  transition:
+    "transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease",
+  "&:hover": {
+    transform: "translateY(-4px) scale(1.01)",
+    borderColor: alpha(theme.palette.success.main, 0.35),
+    boxShadow: `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.62)}, 0 18px 38px ${alpha(
+      theme.palette.common.black,
+      0.12,
+    )}`,
+  },
+});
+
+const glassDeleteIconButtonSx = (theme) => ({
+  color: "secondary.main",
+  bgcolor: alpha(theme.palette.common.white, 0.45),
+  border: "1px solid",
+  borderColor: alpha(theme.palette.common.white, 0.4),
+  backdropFilter: "blur(10px)",
+  transition: "background-color 180ms ease, transform 180ms ease",
+  "&:hover": {
+    bgcolor: alpha(theme.palette.secondary.main, 0.12),
+    transform: "translateY(-1px)",
+  },
+});
+
+const glassViewIconButtonSx = (theme) => ({
+  color: "text.primary",
+  bgcolor: alpha(theme.palette.common.white, 0.45),
+  border: "1px solid",
+  borderColor: alpha(theme.palette.common.white, 0.4),
+  backdropFilter: "blur(10px)",
+  transition: "background-color 180ms ease, transform 180ms ease",
+  "&:hover": {
+    bgcolor: alpha(theme.palette.success.main, 0.1),
+    transform: "translateY(-1px)",
+  },
+});
+
+const glassTitlePillSx = (theme) => ({
+  display: "inline-flex",
+  alignItems: "center",
+  px: 2.4,
   py: 1.05,
-  fontWeight: 900,
-  boxShadow: "0 6px 14px rgba(0,0,0,0.18)",
-};
+  borderRadius: "999px",
+  border: "1px solid",
+  borderColor: alpha(theme.palette.common.white, 0.55),
+  background: `linear-gradient(135deg, ${alpha(theme.palette.common.white, 0.72)} 0%, ${alpha(
+    theme.palette.secondary.main,
+    0.12,
+  )} 100%)`,
+  backdropFilter: "blur(16px)",
+  boxShadow: `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.65)}, 0 10px 24px ${alpha(
+    theme.palette.common.black,
+    0.08,
+  )}`,
+});
+
+const glassTabPillSx = (active) => (theme) => ({
+  ...glassTitlePillSx(theme),
+  cursor: "pointer",
+  opacity: active ? 1 : 0.72,
+  borderColor: active
+    ? alpha(theme.palette.common.white, 0.55)
+    : alpha(theme.palette.common.white, 0.3),
+  background: `linear-gradient(135deg, ${alpha(
+    theme.palette.common.white,
+    active ? 0.74 : 0.48,
+  )} 0%, ${alpha(theme.palette.success.main, active ? 0.08 : 0.03)} 100%)`,
+  transition:
+    "transform 180ms ease, opacity 180ms ease, border-color 180ms ease",
+  "&:hover": {
+    opacity: 1,
+    transform: "translateY(-1px)",
+  },
+});
 
 const emptyBuilding = {
   name: "Office Building A",
@@ -412,15 +550,23 @@ const SchemeInfoBox = ({ schemeKey, compact = false }) => {
       sx={
         compact
           ? { pb: 0.5 }
-          : {
-              bgcolor: "common.white",
+          : (theme) => ({
               border: "1px solid",
-              borderColor: "grey.300",
-              borderRadius: 1.5,
-              px: 2,
-              py: 1.25,
+              borderColor: alpha(theme.palette.common.white, 0.45),
+              borderRadius: 2.5,
+              px: 2.2,
+              py: 1.5,
               mb: 1.5,
-            }
+              background: `linear-gradient(135deg, ${alpha(theme.palette.common.white, 0.76)} 0%, ${alpha(
+                theme.palette.success.main,
+                0.07,
+              )} 100%)`,
+              backdropFilter: "blur(14px)",
+              boxShadow: `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.58)}, 0 10px 24px ${alpha(
+                theme.palette.common.black,
+                0.06,
+              )}`,
+            })
       }
     >
       {/* Description */}
@@ -536,21 +682,21 @@ const ExperimentInput = () => {
   const [readiness, setReadiness] = useState(null);
   const [readinessLoading, setReadinessLoading] = useState(false);
   const [runLoading, setRunLoading] = useState(false);
+  const [animateSchemeRows, setAnimateSchemeRows] = useState(false);
 
   // ── Scroll effect ──────────────────────────────────────────────────────
   useEffect(() => {
-    if (!scrollToId) return;
-
-    const el = schemeBlockRefs.current[scrollToId];
-    if (el) {
-      el.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-        inline: "nearest",
-      });
-      setScrollToId(null);
+    if (loading || tab !== "financing") {
+      setAnimateSchemeRows(false);
+      return;
     }
-  }, [scrollToId, fsItems]);
+
+    const frame = requestAnimationFrame(() => {
+      setAnimateSchemeRows(true);
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [loading, tab, fsItems.length]);
 
   // ── Load ───────────────────────────────────────────────────────────────
   const loadAll = async () => {
@@ -994,30 +1140,28 @@ const ExperimentInput = () => {
               variant="contained"
               onClick={goPrevious}
               startIcon={<ArrowBackIosNewRoundedIcon />}
-              sx={{
-                ...pillButtonSx,
-                bgcolor: "success.main",
-                "&:hover": { bgcolor: "success.dark" },
-              }}
+              sx={glassGreenButtonSx}
             >
               Previous
             </AppButton>
           )}
         </Box>
 
-        <AppButton
-          fullWidth={false}
-          variant="outlined"
-          onClick={onNewExperiment}
+        <Box
           sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
             borderRadius: "999px",
             px: 4,
             py: 1.1,
-            fontWeight: 900,
             border: "2px solid",
             borderColor: "secondary.main",
             bgcolor: "common.white",
             boxShadow: "0 6px 14px rgba(0,0,0,0.18)",
+            cursor: "default",
+            userSelect: "none",
+            pointerEvents: "none",
           }}
         >
           <Stack direction="row" spacing={0.75} alignItems="baseline">
@@ -1042,7 +1186,7 @@ const ExperimentInput = () => {
               Experiment
             </Typography>
           </Stack>
-        </AppButton>
+        </Box>
 
         <Box sx={{ width: 220, display: "flex", justifyContent: "flex-end" }}>
           {tab === "buildings" ? (
@@ -1051,11 +1195,7 @@ const ExperimentInput = () => {
               variant="contained"
               onClick={goNext}
               endIcon={<ArrowForwardIosRoundedIcon />}
-              sx={{
-                ...pillButtonSx,
-                bgcolor: "success.main",
-                "&:hover": { bgcolor: "success.dark" },
-              }}
+              sx={glassGreenButtonSx}
             >
               Next
             </AppButton>
@@ -1067,11 +1207,7 @@ const ExperimentInput = () => {
               loading={runLoading}
               disabled={!isReady || runLoading}
               endIcon={!runLoading ? <PlayArrowIcon /> : undefined}
-              sx={{
-                ...pillButtonSx,
-                bgcolor: "success.main",
-                "&:hover": { bgcolor: "success.dark" },
-              }}
+              sx={glassGreenButtonSx}
             >
               Run
             </AppButton>
@@ -1083,40 +1219,60 @@ const ExperimentInput = () => {
       <Stack
         direction="row"
         justifyContent="center"
-        spacing={12}
-        sx={{ mb: 2 }}
+        spacing={2}
+        flexWrap="wrap"
+        sx={{ mb: 3 }}
       >
-        <Typography
+        <Box
           onClick={() => setTab("buildings")}
-          sx={{
-            cursor: "pointer",
-            fontWeight: 900,
-            fontStyle: "italic",
-            fontSize: 22,
-            color: tab === "buildings" ? "text.primary" : "text.disabled",
-          }}
+          sx={glassTabPillSx(tab === "buildings")}
         >
-          Add Buildings
-        </Typography>
-        <Typography
+          <Typography
+            sx={{
+              fontWeight: 800,
+              fontStyle: "italic",
+              color: tab === "buildings" ? "text.primary" : "text.secondary",
+            }}
+          >
+            Add Buildings
+          </Typography>
+        </Box>
+
+        <Box
           onClick={() => {
             setTab("financing");
             setScreen("list");
           }}
-          sx={{
-            cursor: "pointer",
-            fontWeight: 900,
-            fontStyle: "italic",
-            fontSize: 22,
-            color: tab === "financing" ? "text.primary" : "text.disabled",
-          }}
+          sx={glassTabPillSx(tab === "financing")}
         >
-          Add Financing Schemes
-        </Typography>
+          <Typography
+            sx={{
+              fontWeight: 800,
+              fontStyle: "italic",
+              color: tab === "financing" ? "text.primary" : "text.secondary",
+            }}
+          >
+            Add Financing Schemes
+          </Typography>
+        </Box>
       </Stack>
 
       {pageError && (
-        <Paper sx={{ p: 2, mb: 2, borderRadius: 2 }}>
+        <Paper
+          elevation={0}
+          sx={(theme) => ({
+            p: 2,
+            mb: 2,
+            borderRadius: 2.5,
+            border: "1px solid",
+            borderColor: alpha(theme.palette.error.main, 0.18),
+            background: `linear-gradient(135deg, ${alpha(theme.palette.common.white, 0.78)} 0%, ${alpha(
+              theme.palette.error.main,
+              0.06,
+            )} 100%)`,
+            backdropFilter: "blur(14px)",
+          })}
+        >
           <Typography sx={{ color: "error.main", fontWeight: 900 }}>
             {pageError}
           </Typography>
@@ -1125,18 +1281,22 @@ const ExperimentInput = () => {
 
       {/* PINK FRAME */}
       <Box
-        sx={{
-          bgcolor: "secondary.main",
-          p: { xs: 1, md: 0.35 },
-          borderRadius: 2.5,
-        }}
+        sx={(theme) => ({
+          position: "relative",
+          p: { xs: 1.2, md: 0.5 },
+          borderRadius: 4,
+          backgroundColor: theme.palette.secondary.main,
+          boxShadow: `0 22px 60px ${alpha(theme.palette.common.black, 0.14)}`,
+          overflow: "hidden",
+        })}
       >
         <Box
-          sx={{
-            bgcolor: (t) => t.palette.grey[200],
-            borderRadius: 2,
-            p: { xs: 2, md: 3 },
-          }}
+          sx={(theme) => ({
+            borderRadius: 3.5,
+            p: { xs: 2, md: 4 },
+            backgroundColor: theme.palette.grey[200],
+            boxShadow: `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.35)}`,
+          })}
         >
           {/* ==================== BUILDINGS TAB ==================== */}
           {tab === "buildings" && (
@@ -1145,61 +1305,60 @@ const ExperimentInput = () => {
                 <Box>
                   <Stack spacing={2}>
                     {(buildings || []).map((b, idx) => (
-                      <Paper
+                      <Grow
                         key={b.id}
-                        elevation={0}
-                        sx={{
-                          borderRadius: 2,
-                          border: "2px solid",
-                          borderColor: "success.main",
-                          bgcolor: (t) => t.palette.grey[100],
-                          px: 2,
-                          py: 1.25,
-                        }}
+                        in
+                        timeout={350 + idx * 110}
+                        style={{ transformOrigin: "50% 0%" }}
                       >
-                        <Stack
-                          direction="row"
-                          alignItems="center"
-                          spacing={1.5}
-                        >
-                          <HomeOutlinedIcon sx={{ color: "text.primary" }} />
-                          <Typography
-                            sx={{
-                              flex: 1,
-                              fontWeight: 900,
-                              fontStyle: "italic",
-                            }}
-                            noWrap
+                        <Paper elevation={0} sx={glassPanelSx}>
+                          <Stack
+                            direction="row"
+                            alignItems="center"
+                            spacing={1.5}
                           >
-                            <Box
-                              component="span"
-                              sx={{ color: "success.main" }}
+                            <HomeOutlinedIcon sx={{ color: "text.primary" }} />
+
+                            <Typography
+                              sx={{
+                                flex: 1,
+                                fontWeight: 800,
+                                fontStyle: "italic",
+                              }}
+                              noWrap
                             >
-                              Building {idx + 1}:
-                            </Box>{" "}
-                            {b?.name || "Untitled building"}
-                          </Typography>
-                          <IconButton
-                            aria-label="Delete building"
-                            onClick={() => deleteBuilding(b.id)}
-                            disabled={buildingBusyId === b.id}
-                            sx={{ color: "secondary.main" }}
-                          >
-                            {buildingBusyId === b.id ? (
-                              <CircularProgress size={20} />
-                            ) : (
-                              <DeleteOutlineIcon />
-                            )}
-                          </IconButton>
-                          <IconButton
-                            aria-label="Edit building"
-                            onClick={() => openEditBuilding(b)}
-                            sx={{ color: "text.primary" }}
-                          >
-                            <VisibilityOutlinedIcon />
-                          </IconButton>
-                        </Stack>
-                      </Paper>
+                              <Box
+                                component="span"
+                                sx={{ color: "success.main" }}
+                              >
+                                Building {idx + 1}:
+                              </Box>{" "}
+                              {b?.name || "Untitled building"}
+                            </Typography>
+
+                            <IconButton
+                              aria-label="Delete building"
+                              onClick={() => deleteBuilding(b.id)}
+                              disabled={buildingBusyId === b.id}
+                              sx={glassDeleteIconButtonSx}
+                            >
+                              {buildingBusyId === b.id ? (
+                                <CircularProgress size={20} />
+                              ) : (
+                                <DeleteOutlineIcon />
+                              )}
+                            </IconButton>
+
+                            <IconButton
+                              aria-label="Edit building"
+                              onClick={() => openEditBuilding(b)}
+                              sx={glassViewIconButtonSx}
+                            >
+                              <VisibilityOutlinedIcon />
+                            </IconButton>
+                          </Stack>
+                        </Paper>
+                      </Grow>
                     ))}
                   </Stack>
                   <Stack alignItems="center" sx={{ mt: 3 }}>
@@ -1207,12 +1366,7 @@ const ExperimentInput = () => {
                       fullWidth={false}
                       onClick={openCreateBuilding}
                       startIcon={<AddOutlinedIcon />}
-                      sx={{
-                        ...pillButtonSx,
-                        bgcolor: "success.main",
-                        "&:hover": { bgcolor: "success.dark" },
-                        px: 4,
-                      }}
+                      sx={glassGreenButtonSx}
                     >
                       Add Building
                     </AppButton>
@@ -1233,19 +1387,7 @@ const ExperimentInput = () => {
                     justifyContent="space-between"
                     sx={{ mb: 2 }}
                   >
-                    <Box
-                      sx={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        px: 3,
-                        py: 1,
-                        borderRadius: "999px",
-                        border: "2px solid",
-                        borderColor: "secondary.main",
-                        bgcolor: "common.white",
-                        boxShadow: "0 6px 14px rgba(0,0,0,0.18)",
-                      }}
-                    >
+                    <Box sx={glassTitlePillSx}>
                       <Typography
                         sx={{
                           color: "success.main",
@@ -1263,7 +1405,7 @@ const ExperimentInput = () => {
                         aria-label="Delete building"
                         onClick={() => deleteBuilding(editingBuildingId)}
                         disabled={buildingBusyId === editingBuildingId}
-                        sx={{ color: "secondary.main" }}
+                        sx={glassDeleteIconButtonSx}
                       >
                         {buildingBusyId === editingBuildingId ? (
                           <CircularProgress size={20} />
@@ -1466,7 +1608,14 @@ const ExperimentInput = () => {
                     </Grid>
 
                     {/* EEM section */}
-                    <Divider sx={{ my: 2, width: "100%", maxWidth: 980 }} />
+                    <Divider
+                      sx={(theme) => ({
+                        my: 2.5,
+                        width: "100%",
+                        maxWidth: 980,
+                        borderColor: alpha(theme.palette.common.white, 0.55),
+                      })}
+                    />
 
                     <Typography
                       sx={{
@@ -1659,7 +1808,7 @@ const ExperimentInput = () => {
                         setScreen("list");
                         setEditingBuildingId(null);
                       }}
-                      sx={{ borderRadius: "999px", px: 4 }}
+                      sx={glassGhostButtonSx}
                     >
                       Cancel
                     </AppButton>
@@ -1667,12 +1816,7 @@ const ExperimentInput = () => {
                       fullWidth={false}
                       onClick={saveBuilding}
                       loading={buildingSaveLoading}
-                      sx={{
-                        borderRadius: "999px",
-                        px: 6,
-                        bgcolor: "success.main",
-                        "&:hover": { bgcolor: "success.dark" },
-                      }}
+                      sx={glassGreenButtonSx}
                     >
                       Save
                     </AppButton>
@@ -1709,264 +1853,298 @@ const ExperimentInput = () => {
                 const params = fsDraftById?.[fs.id] ?? fs.params ?? {};
 
                 return (
-                  <Paper
+                  <Grow
                     key={fs.id}
-                    ref={(el) => {
-                      schemeBlockRefs.current[fs.id] = el;
-                    }}
-                    elevation={0}
-                    sx={{
-                      borderRadius: 2,
-                      border: "2px solid",
-                      borderColor: "secondary.main",
-                      bgcolor: (t) => t.palette.grey[200],
-                      p: 2,
-                      scrollMarginTop: "80px",
-                    }}
+                    in={animateSchemeRows}
+                    timeout={350 + idx * 110}
+                    style={{ transformOrigin: "50% 0%" }}
                   >
-                    {/* Header */}
-                    <Stack
-                      direction="row"
-                      alignItems="center"
-                      justifyContent="space-between"
-                      sx={{ mb: 1 }}
+                    <Paper
+                      ref={(el) => {
+                        schemeBlockRefs.current[fs.id] = el;
+                      }}
+                      elevation={0}
+                      sx={(theme) => ({
+                        ...glassPanelSx(theme),
+                        p: 2,
+                        scrollMarginTop: "80px",
+                      })}
                     >
-                      <Typography
-                        sx={{
-                          fontWeight: 900,
-                          fontStyle: "italic",
-                          fontSize: 18,
-                        }}
+                      {/* Header */}
+                      <Stack
+                        direction="row"
+                        alignItems="center"
+                        justifyContent="space-between"
+                        sx={{ mb: 1 }}
                       >
-                        <Box component="span" sx={{ color: "success.main" }}>
-                          Scheme {idx + 1}:
-                        </Box>{" "}
-                        {fs.display_name || fs.scheme_key}
-                      </Typography>
-                      <IconButton
-                        aria-label="Remove scheme"
-                        onClick={() => removeScheme(fs.id)}
-                        disabled={fsBusyId === fs.id}
-                        sx={{ color: "secondary.main" }}
-                      >
-                        {fsBusyId === fs.id ? (
-                          <CircularProgress size={20} />
-                        ) : (
-                          <DeleteOutlineIcon />
-                        )}
-                      </IconButton>
-                    </Stack>
-
-                    {/* Full scheme info */}
-                    <SchemeInfoBox schemeKey={fs.scheme_key} compact={false} />
-
-                    {fsErrorById?.[fs.id] && (
-                      <Alert severity="error" sx={{ borderRadius: 2, mb: 2 }}>
-                        {fsErrorById[fs.id]}
-                      </Alert>
-                    )}
-
-                    {/* Keyboard tip — only shown when there are fields to fill */}
-                    {Array.isArray(defsByKey?.[fs.scheme_key]?.fields) &&
-                      defsByKey[fs.scheme_key].fields.length > 0 && (
-                        <Stack
-                          direction="row"
-                          alignItems="center"
-                          spacing={0.5}
-                          sx={{ mb: 0.5 }}
+                        <Typography
+                          sx={{
+                            fontWeight: 900,
+                            fontStyle: "italic",
+                            fontSize: 18,
+                          }}
                         >
-                          <InfoOutlinedIcon
-                            sx={{ fontSize: 13, color: "text.disabled" }}
-                          />
-                          <Typography
-                            sx={{
-                              fontSize: 15,
-                              color: "text.disabled",
-                              fontStyle: "italic",
-                            }}
-                          >
-                            Use keyboard ↑ ↓ arrows to step through numeric
-                            values
-                          </Typography>
-                        </Stack>
+                          <Box component="span" sx={{ color: "success.main" }}>
+                            Scheme {idx + 1}:
+                          </Box>{" "}
+                          {fs.display_name || fs.scheme_key}
+                        </Typography>
+                        <IconButton
+                          aria-label="Remove scheme"
+                          onClick={() => removeScheme(fs.id)}
+                          disabled={fsBusyId === fs.id}
+                          sx={glassDeleteIconButtonSx}
+                        >
+                          {fsBusyId === fs.id ? (
+                            <CircularProgress size={20} />
+                          ) : (
+                            <DeleteOutlineIcon />
+                          )}
+                        </IconButton>
+                      </Stack>
+
+                      {/* Full scheme info */}
+                      <SchemeInfoBox
+                        schemeKey={fs.scheme_key}
+                        compact={false}
+                      />
+
+                      {fsErrorById?.[fs.id] && (
+                        <Alert severity="error" sx={{ borderRadius: 2, mb: 2 }}>
+                          {fsErrorById[fs.id]}
+                        </Alert>
                       )}
 
-                    {renderSchemeFields(
-                      def,
-                      params,
-                      (updater) =>
-                        setFsDraftById((prev) => {
-                          const curr = prev?.[fs.id] ?? {};
-                          const nextP =
-                            typeof updater === "function"
-                              ? updater(curr)
-                              : updater;
-                          return { ...(prev || {}), [fs.id]: nextP };
-                        }),
-                      () => patchSchemeParams(fs.id),
-                      fs.scheme_key,
-                    )}
+                      {/* Keyboard tip — only shown when there are fields to fill */}
+                      {Array.isArray(defsByKey?.[fs.scheme_key]?.fields) &&
+                        defsByKey[fs.scheme_key].fields.length > 0 && (
+                          <Stack
+                            direction="row"
+                            alignItems="center"
+                            spacing={0.5}
+                            sx={{ mb: 0.5 }}
+                          >
+                            <InfoOutlinedIcon
+                              sx={{ fontSize: 13, color: "text.disabled" }}
+                            />
+                            <Typography
+                              sx={{
+                                fontSize: 15,
+                                color: "text.disabled",
+                                fontStyle: "italic",
+                              }}
+                            >
+                              Use keyboard ↑ ↓ arrows to step through numeric
+                              values
+                            </Typography>
+                          </Stack>
+                        )}
 
-                    <Stack
-                      direction="row"
-                      justifyContent="flex-end"
-                      sx={{ mt: 1.5 }}
-                    >
-                      <AppButton
-                        fullWidth={false}
-                        variant="outlined"
-                        onClick={() => patchSchemeParams(fs.id)}
-                        loading={Boolean(fsSaveById?.[fs.id])}
-                        sx={{ borderRadius: "999px", px: 3 }}
+                      {renderSchemeFields(
+                        def,
+                        params,
+                        (updater) =>
+                          setFsDraftById((prev) => {
+                            const curr = prev?.[fs.id] ?? {};
+                            const nextP =
+                              typeof updater === "function"
+                                ? updater(curr)
+                                : updater;
+                            return { ...(prev || {}), [fs.id]: nextP };
+                          }),
+                        () => patchSchemeParams(fs.id),
+                        fs.scheme_key,
+                      )}
+
+                      <Stack
+                        direction="row"
+                        justifyContent="flex-end"
+                        sx={{ mt: 1.5 }}
                       >
-                        Save params
-                      </AppButton>
-                    </Stack>
-                  </Paper>
+                        <AppButton
+                          fullWidth={false}
+                          variant="outlined"
+                          onClick={() => patchSchemeParams(fs.id)}
+                          loading={Boolean(fsSaveById?.[fs.id])}
+                          sx={glassGreenButtonSx}
+                        >
+                          Save params
+                        </AppButton>
+                      </Stack>
+                    </Paper>
+                  </Grow>
                 );
               })}
 
               {/* ── Accordion scheme picker ── */}
               <Box>
-                <Typography
-                  sx={{
-                    fontWeight: 700,
-                    fontStyle: "italic",
-                    color: "text.secondary",
-                    mb: 1,
-                    textAlign: "center",
-                    fontSize: 15,
-                  }}
+                <Box
+                  sx={{ display: "flex", justifyContent: "center", mb: 1.5 }}
                 >
-                  {addSchemeLoading
-                    ? "Adding scheme…"
-                    : "+ Add a Financing Scheme"}
-                </Typography>
+                  <Box sx={glassTitlePillSx}>
+                    <Typography
+                      sx={{
+                        fontWeight: 800,
+                        fontStyle: "italic",
+                        color: "text.primary",
+                      }}
+                    >
+                      {addSchemeLoading
+                        ? "Adding scheme…"
+                        : "+ Add a Financing Scheme"}
+                    </Typography>
+                  </Box>
+                </Box>
 
-                {SCHEME_SECTIONS.map((section) => {
+                {SCHEME_SECTIONS.map((section, sectionIdx) => {
                   const schemesInSection = section.schemes.filter((key) =>
                     catalogOptions.some((o) => o.key === key),
                   );
                   if (!schemesInSection.length) return null;
 
                   return (
-                    <Accordion
+                    <Grow
                       key={section.label}
-                      disableGutters
-                      elevation={0}
-                      sx={{
-                        border: "1px solid",
-                        borderColor: "grey.300",
-                        borderRadius: "8px !important",
-                        mb: 1,
-                        bgcolor: "common.white",
-                        "&:before": { display: "none" },
-                        "&.Mui-expanded": { borderColor: "secondary.main" },
-                      }}
+                      in={animateSchemeRows}
+                      timeout={300 + sectionIdx * 90}
+                      style={{ transformOrigin: "50% 0%" }}
                     >
-                      <AccordionSummary
-                        expandIcon={<ExpandMoreIcon />}
-                        sx={{
-                          minHeight: 44,
-                          "& .MuiAccordionSummary-content": { my: 0.75 },
-                        }}
+                      <Accordion
+                        disableGutters
+                        elevation={0}
+                        sx={(theme) => ({
+                          border: "1px solid",
+                          borderColor: alpha(theme.palette.common.white, 0.4),
+                          borderRadius: "18px !important",
+                          mb: 1.2,
+                          overflow: "hidden",
+                          background: `linear-gradient(135deg, ${alpha(theme.palette.common.white, 0.7)} 0%, ${alpha(
+                            theme.palette.success.main,
+                            0.05,
+                          )} 100%)`,
+                          backdropFilter: "blur(14px)",
+                          boxShadow: `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.56)}, 0 10px 24px ${alpha(
+                            theme.palette.common.black,
+                            0.06,
+                          )}`,
+                          "&:before": { display: "none" },
+                          "&.Mui-expanded": {
+                            borderColor: alpha(
+                              theme.palette.success.main,
+                              0.28,
+                            ),
+                          },
+                        })}
                       >
-                        <Typography
-                          sx={{ fontWeight: 800, fontStyle: "italic" }}
+                        <AccordionSummary
+                          expandIcon={<ExpandMoreIcon />}
+                          sx={{
+                            minHeight: 48,
+                            px: 2,
+                            "& .MuiAccordionSummary-content": { my: 0.9 },
+                          }}
                         >
-                          {section.label}
-                        </Typography>
-                      </AccordionSummary>
+                          <Typography
+                            sx={{ fontWeight: 800, fontStyle: "italic" }}
+                          >
+                            {section.label}
+                          </Typography>
+                        </AccordionSummary>
 
-                      <AccordionDetails sx={{ pt: 0, pb: 1.5, px: 2 }}>
-                        <Stack spacing={1.5}>
-                          {schemesInSection.map((key) => {
-                            const catalogEntry = catalogOptions.find(
-                              (o) => o.key === key,
-                            );
-                            const name = catalogEntry?.name || key;
-                            const alreadyAdded = addedSchemeKeys.has(key);
+                        <AccordionDetails sx={{ pt: 0, pb: 1.5, px: 2 }}>
+                          <Stack spacing={1.5}>
+                            {schemesInSection.map((key) => {
+                              const catalogEntry = catalogOptions.find(
+                                (o) => o.key === key,
+                              );
+                              const name = catalogEntry?.name || key;
+                              const alreadyAdded = addedSchemeKeys.has(key);
 
-                            return (
-                              <Paper
-                                key={key}
-                                elevation={0}
-                                sx={{
-                                  border: "1px solid",
-                                  borderColor: alreadyAdded
-                                    ? "success.main"
-                                    : "grey.200",
-                                  borderRadius: 2,
-                                  p: 1.75,
-                                  bgcolor: alreadyAdded
-                                    ? "success.50"
-                                    : (t) => t.palette.grey[50],
-                                }}
-                              >
-                                <Stack
-                                  direction="row"
-                                  alignItems="flex-start"
-                                  spacing={2}
+                              return (
+                                <Paper
+                                  key={key}
+                                  elevation={0}
+                                  sx={(theme) => ({
+                                    ...glassPanelSx(theme),
+                                    p: 1.75,
+                                    borderColor: alreadyAdded
+                                      ? alpha(theme.palette.success.main, 0.35)
+                                      : alpha(theme.palette.common.white, 0.4),
+                                    opacity: alreadyAdded ? 0.88 : 1,
+                                  })}
                                 >
-                                  <Box sx={{ flex: 1 }}>
-                                    <Typography
-                                      sx={{
-                                        fontWeight: 800,
-                                        fontStyle: "italic",
-                                        mb: 0.5,
-                                      }}
-                                    >
-                                      {name}
-                                      {alreadyAdded && (
-                                        <Box
-                                          component="span"
-                                          sx={{
-                                            ml: 1,
-                                            fontSize: 12,
-                                            color: "success.main",
-                                            fontStyle: "normal",
-                                            fontWeight: 700,
-                                          }}
-                                        >
-                                          ✓ Added
-                                        </Box>
-                                      )}
-                                    </Typography>
-                                    {/* Compact info for picker */}
-                                    <SchemeInfoBox schemeKey={key} compact />
-                                  </Box>
-
-                                  <AppButton
-                                    fullWidth={false}
-                                    variant="contained"
-                                    startIcon={<AddOutlinedIcon />}
-                                    onClick={() => onSelectAddScheme(key)}
-                                    disabled={addSchemeLoading || alreadyAdded}
-                                    sx={{
-                                      bgcolor: alreadyAdded
-                                        ? "grey.400"
-                                        : "success.main",
-                                      "&:hover": {
-                                        bgcolor: alreadyAdded
-                                          ? "grey.400"
-                                          : "success.dark",
-                                      },
-                                      borderRadius: "999px",
-                                      px: 2,
-                                      minWidth: 90,
-                                      mt: 0.25,
-                                      flexShrink: 0,
-                                    }}
+                                  <Stack
+                                    direction="row"
+                                    alignItems="flex-start"
+                                    spacing={2}
                                   >
-                                    {alreadyAdded ? "Added" : "Add"}
-                                  </AppButton>
-                                </Stack>
-                              </Paper>
-                            );
-                          })}
-                        </Stack>
-                      </AccordionDetails>
-                    </Accordion>
+                                    <Box sx={{ flex: 1 }}>
+                                      <Typography
+                                        sx={{
+                                          fontWeight: 800,
+                                          fontStyle: "italic",
+                                          mb: 0.5,
+                                        }}
+                                      >
+                                        {name}
+                                        {alreadyAdded && (
+                                          <Box
+                                            component="span"
+                                            sx={{
+                                              ml: 1,
+                                              fontSize: 12,
+                                              color: "success.main",
+                                              fontStyle: "normal",
+                                              fontWeight: 700,
+                                            }}
+                                          >
+                                            ✓ Added
+                                          </Box>
+                                        )}
+                                      </Typography>
+                                      {/* Compact info for picker */}
+                                      <SchemeInfoBox schemeKey={key} compact />
+                                    </Box>
+
+                                    <AppButton
+                                      fullWidth={false}
+                                      variant="contained"
+                                      startIcon={<AddOutlinedIcon />}
+                                      onClick={() => onSelectAddScheme(key)}
+                                      disabled={
+                                        addSchemeLoading || alreadyAdded
+                                      }
+                                      sx={(theme) => ({
+                                        ...glassGreenButtonSx(theme),
+                                        px: 2.2,
+                                        minWidth: 90,
+                                        mt: 0.25,
+                                        flexShrink: 0,
+                                        ...(alreadyAdded && {
+                                          color: alpha(
+                                            theme.palette.common.white,
+                                            0.8,
+                                          ),
+                                          background: alpha(
+                                            theme.palette.success.main,
+                                            0.45,
+                                          ),
+                                          boxShadow: "none",
+                                          transform: "none",
+                                          filter: "none",
+                                        }),
+                                      })}
+                                    >
+                                      {alreadyAdded ? "Added" : "Add"}
+                                    </AppButton>
+                                  </Stack>
+                                </Paper>
+                              );
+                            })}
+                          </Stack>
+                        </AccordionDetails>
+                      </Accordion>
+                    </Grow>
                   );
                 })}
               </Box>
