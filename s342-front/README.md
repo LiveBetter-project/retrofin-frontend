@@ -60,6 +60,45 @@ Each scheme has its own **required inputs**, and the UI should dynamically revea
   * **General results** (Version 1): aggregated results for the experiment as a whole
   * **Per-building results** (Version 2): detailed results per building
 
+## Frontend API notes
+
+> Practical notes for frontend development. Read this before implementing API calls.
+
+**Base URL**: `http://localhost:8000/api` (development)
+
+**Trailing slashes**: Django/DRF requires a trailing slash on every URL. Always append `/` (e.g. `/api/experiments/`, `/api/experiments/exp_123/buildings/`).
+
+**Authentication**: All endpoints require a JWT access token except `/api/auth/register/` and `/api/auth/login/`. Send it as:
+```
+Authorization: Bearer <access_token>
+```
+Access tokens expire after 60 minutes. Use `/api/auth/refresh/` with the refresh token (7-day lifetime) to get a new one.
+
+**Decimal fields**: Returned as JSON numbers, not strings (e.g. `"floor_area": 1200.0`, `"eem_energy_savings": 0.22`).
+
+**Error envelope**: All errors follow the same shape:
+```json
+{ "error": { "code": "VALIDATION_ERROR", "message": "...", "details": [{ "path": "field", "message": "..." }] } }
+```
+
+**Scheme POST body**: Use `scheme_type` (not `scheme_key`) as the field name when creating a financing scheme instance:
+```json
+{ "scheme_type": "bank_loan", "params": { "loan_amount": 250000, "term_years": 10 } }
+```
+The response uses `scheme_key` for the same value (the type identifier).
+
+**Building response**: The parent experiment identifier is returned as `experiment_id` (e.g. `"experiment_id": "exp_abc123"`). This field is read-only; do not send it in POST/PATCH requests.
+
+**Pagination**: All list endpoints return:
+```json
+{ "items": [...], "page": { "limit": 20, "offset": 0, "total": 5 } }
+```
+Default limit is 20, maximum is 100. Use `?limit=N&offset=N` query params to paginate.
+
+**Run action URL**: `POST /api/experiments/{id}/run/` (not `/runs/`). Returns `{ "run_id", "status", "started_at" }`. Returns HTTP 400 if the experiment has no buildings or no financing schemes.
+
+---
+
 ## Endpoints of Version 1
 Base: `/api`
 All resources are scoped to the authenticated user (server enforces `user_id` ownership).
@@ -240,70 +279,67 @@ All resources are scoped to the authenticated user (server enforces `user_id` ow
 
 ## Financing schemes entity
 
-Financing schemes are modeled in two layers to support dynamic (scheme-specific) input fields without creating a table/class per scheme.
+Financing schemes are modeled using a **base + type-specific table** design. Each scheme type has its own dedicated table containing only the fields relevant to that type.
 
-### 1) Scheme definitions (catalog)
+### 1) Scheme catalog (static, in-code)
 
-The backend maintains a **catalog** of supported financing schemes. Each definition describes *what inputs a scheme expects* using a JSON Schema (and optionally a UI schema for ordering/labels).
+The catalog is **not stored in the database**. It is defined in code (`views/financing_schemes.py`) as a static dictionary keyed by `scheme_type`. Each entry describes:
 
-A definition is **not user data**; it is seeded/configured by the system.
+* `key` — stable identifier matching the `scheme_type` stored in the DB (e.g. `bank_loan`, `epc_shared_savings`)
+* `name` — display name
+* `category` — grouping label (`debt`, `crowdfunding`, `epc`, `green_bond`, `utility`, `lease`, `equity`)
+* `fields` — ordered list of field descriptors used by the frontend to render the dynamic input form: `name`, `type` (`number` or `integer`), `label`, `required`, `minimum`, `maximum`
 
-**Core fields**
+The catalog is served by `GET /financing-schemes/` and `GET /financing-schemes/{key}/`.
 
-* `scheme_key` (stable identifier, e.g. `loan_amortizing_v1`)
-* `version` (integer, used for backward compatibility)
-* `name`, `category`, `description`
-* `input_schema` (JSON Schema describing required/optional fields, types, constraints, defaults)
-* `ui_schema` (optional JSON for UI hints: grouping, ordering, labels)
-* `is_active` (boolean)
+### 2) Scheme instances (user selections, in the DB)
 
-**Example `input_schema`**
+When a user adds a financing scheme to an experiment, the backend creates:
+
+1. A **`Scheme`** base record (`schemes` table): `id` (`fs_<hex>`), `experiment_id`, `scheme_type`, `created_at`, `updated_at`
+2. A **type-specific child record** linked via OneToOne:
+
+| `scheme_type`              | Child table                     | Fields |
+|----------------------------|---------------------------------|--------|
+| `equity`                   | `scheme_equity`                 | _(none)_ |
+| `bank_loan`                | `scheme_bank_loan`              | `loan_amount`, `term_years` |
+| `equity_crowdfunding`      | `scheme_equity_crowdfunding`    | `platform_fee_percent`, `crowd_share_percent` |
+| `lending_crowdfunding`     | `scheme_lending_crowdfunding`   | `platform_fee_percent`, `loan_amount`, `term_years`, `fixed_interest_rate` |
+| `royalty_crowdfunding`     | `scheme_royalty_crowdfunding`   | `platform_fee_percent`, `loan_amount`, `term_years`, `fixed_interest_rate` |
+| `epc_first_out`            | `scheme_epc_first_out`          | _(none)_ |
+| `epc_shared_savings`       | `scheme_epc_shared_savings`     | `esco_fee_percent`, `term_years` |
+| `epc_guaranteed_savings`   | `scheme_epc_guaranteed_savings` | `guaranteed_savings_amount`, `term_years` |
+| `green_bond_loan`          | `scheme_green_bond_loan`        | `loan_amount`, `term_years`, `fixed_interest_rate`, `maintenance_cost` |
+| `green_bond_bullet`        | `scheme_green_bond_bullet`      | `loan_amount`, `term_years`, `fixed_interest_rate`, `maintenance_cost` |
+| `on_bill`                  | `scheme_on_bill`                | `fixed_interest_rate`, `term_years` |
+| `operational_lease`        | `scheme_operational_lease`      | `lease_payment`, `term_years` |
+
+### Validation
+
+On `POST /experiments/{id}/financing-schemes`, the backend validates submitted `params` against the catalog field definitions (required fields, types, min/max ranges). Unknown fields are rejected.
+
+### API request/response shape
+
+**POST request body**
 
 ```json
 {
-  "type": "object",
-  "properties": {
-    "principal": { "type": "number", "minimum": 0 },
-    "interest_rate": { "type": "number", "minimum": 0, "maximum": 1 },
-    "tenor_years": { "type": "integer", "minimum": 1, "maximum": 40 },
-    "grace_period_months": { "type": "integer", "minimum": 0, "maximum": 120, "default": 0 }
-  },
-  "required": ["principal", "interest_rate", "tenor_years"],
-  "additionalProperties": false
+  “scheme_type”: “bank_loan”,
+  “params”: { “loan_amount”: 250000, “term_years”: 10 }
 }
 ```
 
-### 2) Experiment scheme instances (user selections)
+**GET/POST/PATCH response item**
 
-When a user selects financing schemes for an experiment, the backend creates **instance records**. Each instance stores:
+```json
+{
+  “id”: “fs_abc123”,
+  “scheme_key”: “bank_loan”,
+  “display_name”: “Bank Loan”,
+  “params”: { “loan_amount”: 250000, “term_years”: 10 },
+  “created_at”: “2026-03-09T10:00:00Z”,
+  “updated_at”: “2026-03-09T10:05:00Z”
+}
+```
 
-* which scheme definition was chosen (`scheme_key`, `scheme_version`)
-* the user-provided inputs (`params`) as JSON (Postgres `JSONB`)
-
-This is **user data** and is scoped to an experiment.
-
-**Core fields**
-
-* `id`
-* `experiment_id`
-* `scheme_key`
-* `scheme_version`
-* `params` (JSONB)
-* `created_at`, `updated_at`
-
-### Validation and versioning rules
-
-* On `POST/PATCH` to `/experiments/{id}/financing-schemes`, the backend validates `params` against the corresponding `input_schema`.
-* `additionalProperties: false` rejects unknown fields.
-* `scheme_version` is stored with the instance so existing experiments remain valid if a scheme is updated (e.g., `loan_amortizing_v2`).
-
-### Postgres mapping (conceptual)
-
-* `financing_scheme_definitions(scheme_key, version, ..., input_schema JSONB, ui_schema JSONB)`
-* `experiment_financing_schemes(id, experiment_id, scheme_key, scheme_version, params JSONB, ...)`
-
-This avoids:
-
-* a wide “all possible fields” table (mostly NULLs),
-* a table/class per scheme,
-  while keeping strong validation and dynamic UI generation.
+> Note: the API uses `scheme_key` / `scheme_type` interchangeably in request body and response. Internally the DB column is named `scheme_type`.
