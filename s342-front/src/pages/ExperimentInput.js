@@ -6,7 +6,13 @@ import {
   AccordionSummary,
   Alert,
   Box,
+  Button,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Divider,
   Grid,
   Grow,
@@ -673,6 +679,7 @@ const ExperimentInput = () => {
   // Add scheme
   const [addSchemeError, setAddSchemeError] = useState("");
   const [addSchemeLoading, setAddSchemeLoading] = useState(false);
+  const [equityConfirmOpen, setEquityConfirmOpen] = useState(false);
 
   // Auto-scroll to newly added scheme
   const [scrollToId, setScrollToId] = useState(null);
@@ -1002,6 +1009,41 @@ const ExperimentInput = () => {
         ?.map((d) => `${d.path}: ${d.message}`)
         .join(" | ");
       setAddSchemeError(detailText ? `${msg} (${detailText})` : msg);
+    } finally {
+      setAddSchemeLoading(false);
+    }
+  };
+
+  // ── Equity exclusive: remove all others then add equity ────────────────
+  const removeAllAndAddEquity = async () => {
+    setEquityConfirmOpen(false);
+    setAddSchemeLoading(true);
+    setAddSchemeError("");
+    setPageError("");
+    try {
+      await Promise.all(
+        fsItems.map((fs) =>
+          ExperimentsAPI.removeExperimentFinancingScheme(experimentId, fs.id),
+        ),
+      );
+      setFsItems([]);
+      setFsDraftById({});
+      const created = await ExperimentsAPI.addExperimentFinancingScheme(
+        experimentId,
+        { scheme_type: "equity", params: {} },
+      );
+      const def = await ensureDef("equity");
+      setDefsByKey((prev) => ({ ...(prev || {}), equity: def }));
+      setFsDraftById({ [created.id]: {} });
+      setFsItems([created]);
+      setScrollToId(created.id);
+      await refreshReadiness();
+    } catch (err) {
+      const { msg } = extractApiError(
+        err,
+        "Failed to switch to Equity financing.",
+      );
+      setPageError(msg);
     } finally {
       setAddSchemeLoading(false);
     }
@@ -2110,7 +2152,16 @@ const ExperimentInput = () => {
                                       fullWidth={false}
                                       variant="contained"
                                       startIcon={<AddOutlinedIcon />}
-                                      onClick={() => onSelectAddScheme(key)}
+                                      onClick={() => {
+                                        if (
+                                          key === "equity" &&
+                                          fsItems.length > 0
+                                        ) {
+                                          setEquityConfirmOpen(true);
+                                        } else {
+                                          onSelectAddScheme(key);
+                                        }
+                                      }}
                                       disabled={
                                         addSchemeLoading || alreadyAdded
                                       }
@@ -2152,6 +2203,46 @@ const ExperimentInput = () => {
           )}
         </Box>
       </Box>
+
+      {/* ── Equity confirmation dialog ── */}
+      <Dialog
+        open={equityConfirmOpen}
+        onClose={() => setEquityConfirmOpen(false)}
+        PaperProps={{
+          sx: (theme) => ({
+            borderRadius: 3,
+            border: "1px solid",
+            borderColor: alpha(theme.palette.common.white, 0.45),
+            background: `linear-gradient(135deg, ${alpha(theme.palette.common.white, 0.92)} 0%, ${alpha(theme.palette.warning.main, 0.06)} 100%)`,
+            backdropFilter: "blur(18px)",
+            boxShadow: `0 24px 60px ${alpha(theme.palette.common.black, 0.18)}`,
+          }),
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 900, fontStyle: "italic" }}>
+          Switch to Equity (Self-Financing)?
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Equity means you are financing{" "}
+            <strong>100% of the project yourself</strong>. Selecting it will
+            remove all {fsItems.length} other financing scheme
+            {fsItems.length !== 1 ? "s" : ""} currently added to this
+            experiment.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+          <Button
+            onClick={() => setEquityConfirmOpen(false)}
+            sx={glassGhostButtonSx}
+          >
+            Cancel
+          </Button>
+          <Button onClick={removeAllAndAddEquity} sx={glassGreenButtonSx}>
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
