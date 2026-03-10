@@ -8,7 +8,7 @@ const AppLayout = () => {
   const { pathname } = useLocation();
 
   // Adjust this only if your auth routes have different paths.
-  const isAuthRoute = /^\/(login|register)(\/)?$/.test(pathname);
+  const isAuthRoute = /^\/(auth|login|register)(\/)?$/.test(pathname);
 
   return (
     <Box
@@ -20,7 +20,7 @@ const AppLayout = () => {
         overflow: "hidden",
         isolation: "isolate",
         background: isAuthRoute
-          ? "linear-gradient(180deg, #FFFDF9 0%, #F8F1E8 48%, #F5ECE3 100%)"
+          ? "linear-gradient(160deg, #1a1821 0%, #201d29 55%, #1c1f26 100%)"
           : "linear-gradient(180deg, #FBFAF7 0%, #F7F4EF 46%, #F3EFEB 100%)",
 
         "@keyframes authWaveA": {
@@ -51,18 +51,9 @@ const AppLayout = () => {
           ? {
               content: '""',
               position: "absolute",
-              inset: "-14% -10%",
+              inset: 0,
               zIndex: 0,
               pointerEvents: "none",
-              opacity: 1,
-              filter: "blur(14px)",
-              background: `
-                radial-gradient(48% 62% at -6% 48%, rgba(240,49,87,0.34) 0%, rgba(240,49,87,0.18) 34%, rgba(240,49,87,0) 72%),
-                radial-gradient(52% 64% at 106% 52%, rgba(236,200,150,0.50) 0%, rgba(236,200,150,0.24) 36%, rgba(236,200,150,0) 72%),
-                radial-gradient(60% 24% at 50% -4%, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.38) 38%, rgba(255,255,255,0) 74%),
-                radial-gradient(60% 24% at 50% 104%, rgba(255,255,255,0.82) 0%, rgba(255,255,255,0.28) 38%, rgba(255,255,255,0) 74%)
-              `,
-              animation: "authWaveA 12s ease-in-out infinite alternate",
             }
           : {
               content: '""',
@@ -83,19 +74,9 @@ const AppLayout = () => {
           ? {
               content: '""',
               position: "absolute",
-              inset: "-10%",
+              inset: 0,
               zIndex: 0,
               pointerEvents: "none",
-              opacity: 0.95,
-              filter: "blur(10px)",
-              background: `
-                radial-gradient(28% 22% at 18% 18%, rgba(236,200,150,0.28) 0%, rgba(236,200,150,0.10) 42%, rgba(236,200,150,0) 74%),
-                radial-gradient(24% 20% at 84% 20%, rgba(240,49,87,0.24) 0%, rgba(240,49,87,0.10) 42%, rgba(240,49,87,0) 74%),
-                radial-gradient(22% 18% at 82% 82%, rgba(39,138,33,0.14) 0%, rgba(39,138,33,0.06) 40%, rgba(39,138,33,0) 74%),
-                linear-gradient(135deg, transparent 0%, transparent 66%, rgba(255,255,255,0.44) 66.2%, transparent 66.7%),
-                linear-gradient(25deg, transparent 0%, transparent 73%, rgba(53,53,53,0.04) 73.2%, transparent 73.8%)
-              `,
-              animation: "authWaveB 16s ease-in-out infinite alternate",
             }
           : {
               content: '""',
@@ -111,6 +92,24 @@ const AppLayout = () => {
             },
       }}
     >
+      {isAuthRoute && (
+        <Box
+          aria-hidden="true"
+          sx={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 0,
+            pointerEvents: "none",
+            overflow: "hidden",
+          }}
+        >
+          <div className="auth-wave auth-wave--1" />
+          <div className="auth-wave auth-wave--2" />
+          <div className="auth-wave auth-wave--3" />
+          <div className="auth-wave auth-wave--4" />
+        </Box>
+      )}
+
       <Box sx={{ position: "relative", zIndex: 1 }}>
         <Header />
       </Box>

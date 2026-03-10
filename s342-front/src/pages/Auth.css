@@ -3,6 +3,76 @@
   display: flex;
   justify-content: center;
   padding: 24px 0;
+  position: relative;
+}
+
+/* ── Wave background (rendered inside AppLayout at z-index: 0) ── */
+
+/* Base wave element */
+.auth-wave {
+  position: absolute;
+  width: 200%;
+  left: 0;
+}
+
+/*
+ * Wave paths are single cubic bezier curves: M0,Y C(W/4),(Y-A) (3W/4),(Y+A) W,Y
+ * Tangent at x=0 and x=W are identical → seamless tiling.
+ * All scroll by translateX(-50%) = exactly one period → seamless loop.
+ */
+
+/* Wave 1 — pink, bottom, most prominent, scrolls forward 22s */
+.auth-wave--1 {
+  bottom: -4%;
+  height: 300px;
+  opacity: 0.22;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 200'%3E%3Cpath fill='%23F03157' d='M0,100 C360,40 1080,160 1440,100 L1440,200 L0,200 Z'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-size: 50% 100%;
+  animation: auth-wave-fwd 22s linear infinite;
+}
+
+/* Wave 2 — pink inverse phase, slightly higher, scrolls backward 15s */
+.auth-wave--2 {
+  bottom: 14%;
+  height: 270px;
+  opacity: 0.13;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 200'%3E%3Cpath fill='%23F03157' d='M0,100 C360,160 1080,40 1440,100 L1440,200 L0,200 Z'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-size: 50% 100%;
+  animation: auth-wave-bwd 15s linear infinite;
+}
+
+/* Wave 3 — sand, mid-page, slow forward 30s */
+.auth-wave--3 {
+  bottom: 32%;
+  height: 250px;
+  opacity: 0.09;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 200'%3E%3Cpath fill='%23ECC896' d='M0,120 C360,60 1080,180 1440,120 L1440,200 L0,200 Z'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-size: 50% 100%;
+  animation: auth-wave-fwd 30s linear infinite;
+}
+
+/* Wave 4 — green, upper portion, very subtle, backward 40s */
+.auth-wave--4 {
+  bottom: 52%;
+  height: 230px;
+  opacity: 0.07;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 200'%3E%3Cpath fill='%23278A21' d='M0,80 C360,20 1080,140 1440,80 L1440,200 L0,200 Z'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-size: 50% 100%;
+  animation: auth-wave-bwd 40s linear infinite;
+}
+
+@keyframes auth-wave-fwd {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@keyframes auth-wave-bwd {
+  from { transform: translateX(-50%); }
+  to   { transform: translateX(0); }
 }
 
 .auth-container {
@@ -13,7 +83,7 @@
   border: 2px solid var(--lb-pink);
   border-radius: 56px;
   overflow: hidden;
-  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 8px 24px rgba(0, 0, 0, 0.32);
 }
 
 .form-container {
