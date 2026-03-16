@@ -59,7 +59,6 @@ const Settings = () => {
     const rest = [
       { label: "Username", value: profile.username || "" },
       { label: "Email", value: profile.email || "" },
-      { label: "User ID", value: profile.id || "" },
     ].filter((x) => x.value !== "");
 
     return { first, last, rest };

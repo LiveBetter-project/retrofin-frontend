@@ -109,7 +109,7 @@ const Dashboard = () => {
       const id = exp?.id;
       if (id) {
         setDialogOpen(false);
-        navigate(`/experiments/${id}/input`);
+        navigate(`/experiments/input?id=${id}`);
       } else {
         setError("Experiment created but no id was returned.");
       }
