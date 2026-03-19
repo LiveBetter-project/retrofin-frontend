@@ -27,9 +27,9 @@ const routesForAuthenticatedOnly = [
       { index: true, element: <Dashboard /> },
       { path: "dashboard", element: <Dashboard /> },
 
-      // Core app flow
-      { path: "experiments/:experimentId/input", element: <ExperimentInput /> },
-      { path: "experiments/:experimentId/output", element: <ExperimentOutput /> },
+      // Core app flow — IDs are passed as ?id= search params, not path segments
+      { path: "experiments/input", element: <ExperimentInput /> },
+      { path: "experiments/output", element: <ExperimentOutput /> },
 
       // Drawer link
       { path: "settings", element: <Settings /> },

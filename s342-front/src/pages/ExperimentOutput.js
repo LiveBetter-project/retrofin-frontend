@@ -1,9 +1,10 @@
 import React from "react";
-import { useParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { Box, Typography } from "@mui/material";
 
 const ExperimentOutput = () => {
-  const { experimentId } = useParams();
+  const [searchParams] = useSearchParams();
+  const experimentId = searchParams.get("id");
 
   return (
     <Box>
