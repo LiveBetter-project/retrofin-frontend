@@ -15,7 +15,6 @@ import { alpha } from "@mui/material/styles";
 
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 
@@ -40,7 +39,7 @@ import {
  *   onReadinessRefresh — call after any create/update/delete to refresh readiness
  *   onPageError        — surface fatal API errors to the page level
  */
-const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
+const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError, onBuildingsChange }) => {
   const [loading, setLoading] = useState(true);
   const [buildings, setBuildings] = useState([]);
 
@@ -61,6 +60,7 @@ const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
         if (!mounted) return;
         const list = Array.isArray(blds) ? blds : [];
         setBuildings(list);
+        if (onBuildingsChange) onBuildingsChange(list);
         if (list.length === 0) setScreen("form");
       } catch (err) {
         if (!mounted) return;
@@ -105,7 +105,11 @@ const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
     setBuildingBusyId(buildingId);
     try {
       await ExperimentsAPI.removeBuilding(experimentId, buildingId);
-      setBuildings((prev) => prev.filter((x) => x.id !== buildingId));
+      setBuildings((prev) => {
+        const next = prev.filter((x) => x.id !== buildingId);
+        if (onBuildingsChange) onBuildingsChange(next);
+        return next;
+      });
       await onReadinessRefresh();
       if (editingBuildingId === buildingId) {
         setScreen("list");
@@ -119,8 +123,22 @@ const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
     }
   };
 
+  // ── Maintenance cost validation (≤ 10% of capex) ─────────────────────
+  const maintenanceCostError = (() => {
+    const capex = Number(buildingDraft.eem_capex) || 0;
+    const maint = Number(buildingDraft.eem_maintenance_cost) || 0;
+    if (capex > 0 && maint > 0 && maint > capex * 0.1) {
+      return `Must not exceed 10% of CAPEX (max €${(capex * 0.1).toFixed(0)}).`;
+    }
+    return "";
+  })();
+
   // ── Save ──────────────────────────────────────────────────────────────
   const saveBuilding = async () => {
+    if (maintenanceCostError) {
+      setBuildingFormError(`Annual Maintenance Cost: ${maintenanceCostError}`);
+      return;
+    }
     setBuildingSaveLoading(true);
     setBuildingFormError("");
     const payload = {
@@ -149,16 +167,22 @@ const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
     try {
       if (!editingBuildingId) {
         const created = await ExperimentsAPI.createBuilding(experimentId, payload);
-        setBuildings((prev) => [created, ...prev].filter(Boolean));
+        setBuildings((prev) => {
+          const next = [created, ...prev].filter(Boolean);
+          if (onBuildingsChange) onBuildingsChange(next);
+          return next;
+        });
       } else {
         const updated = await ExperimentsAPI.patchBuilding(
           experimentId,
           editingBuildingId,
           payload,
         );
-        setBuildings((prev) =>
-          prev.map((x) => (x.id === editingBuildingId ? updated : x)),
-        );
+        setBuildings((prev) => {
+          const next = prev.map((x) => (x.id === editingBuildingId ? updated : x));
+          if (onBuildingsChange) onBuildingsChange(next);
+          return next;
+        });
       }
       setScreen("list");
       setEditingBuildingId(null);
@@ -291,19 +315,6 @@ const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
       >
         General Details
       </Typography>
-
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="center"
-        spacing={0.5}
-        sx={{ mb: 2 }}
-      >
-        <InfoOutlinedIcon sx={{ fontSize: 14, color: "text.disabled" }} />
-        <Typography sx={{ fontSize: 15, color: "text.disabled", fontStyle: "italic" }}>
-          Use keyboard ↑ ↓ arrows to step through numeric values
-        </Typography>
-      </Stack>
 
       <Box sx={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}>
         {/* General details */}
@@ -474,10 +485,10 @@ const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
           >
             <Stack spacing={2} sx={{ width: 420 }}>
               {[
-                { label: "Annual Maintenance Cost (€)", field: "eem_maintenance_cost", min: 0, step: 1000 },
+                { label: "Annual Maintenance Cost (€)", field: "eem_maintenance_cost", min: 0, step: 1000, errorFn: () => maintenanceCostError },
                 { label: "Lifetime (years)", field: "eem_lifetime", integer: true, min: 1, step: 1 },
-              ].map(({ label, field, integer, min, step }) => (
-                <Stack direction="row" alignItems="center" spacing={2} key={field}>
+              ].map(({ label, field, integer, min, step, errorFn }) => (
+                <Stack direction="row" alignItems="flex-start" spacing={2} key={field}>
                   <Typography
                     sx={{
                       width: 170,
@@ -485,6 +496,7 @@ const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
                       fontWeight: 900,
                       fontStyle: "italic",
                       flexShrink: 0,
+                      pt: errorFn?.() ? 0.5 : 0,
                     }}
                   >
                     {label}
@@ -495,6 +507,7 @@ const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
                       integer={integer}
                       min={min}
                       step={step}
+                      error={errorFn?.()}
                       onChange={(e) =>
                         setBuildingDraft((p) => ({ ...p, [field]: e.target.value }))
                       }

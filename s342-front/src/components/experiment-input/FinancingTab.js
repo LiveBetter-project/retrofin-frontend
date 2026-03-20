@@ -1,17 +1,11 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
   Alert,
   Box,
-  Button,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
   Grow,
   IconButton,
   Paper,
@@ -23,7 +17,6 @@ import { alpha } from "@mui/material/styles";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
 import ExperimentsAPI from "../../api/experiments";
 import { AppButton } from "../index";
@@ -32,7 +25,6 @@ import {
   SCHEME_SECTIONS,
   extractApiError,
   glassDeleteIconButtonSx,
-  glassGhostButtonSx,
   glassGreenButtonSx,
   glassPanelSx,
   glassTitlePillSx,
@@ -46,10 +38,19 @@ import SchemeFields from "./SchemeFields";
  *
  * Props:
  *   experimentId       — current experiment ID
+ *   buildings          — array of building objects (for capex / lifetime validation)
  *   onReadinessRefresh — call after any add/remove/save to refresh readiness
  *   onPageError        — surface fatal API errors to the page level
+ *   onSchemesChange    — called with the current fsItems array after every mutation
+ *
+ * Exposed via ref (useImperativeHandle):
+ *   addEquity()    — remove all non-equity schemes then add equity
+ *   removeEquity() — remove the equity scheme if present
  */
-const FinancingTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
+const FinancingTab = React.forwardRef(function FinancingTab(
+  { experimentId, buildings = [], onReadinessRefresh, onPageError, onSchemesChange },
+  ref,
+) {
   const [loading, setLoading] = useState(true);
 
   // Catalog (scheme type definitions)
@@ -70,13 +71,25 @@ const FinancingTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
   // Picker add state
   const [addSchemeLoading, setAddSchemeLoading] = useState(false);
   const [addSchemeError, setAddSchemeError] = useState("");
-  // Equity confirmation dialog
-  const [equityConfirmOpen, setEquityConfirmOpen] = useState(false);
-  // Auto-scroll to newly added scheme
-  const [scrollToId, setScrollToId] = useState(null);
-  const schemeBlockRefs = useRef({});
   // Entry animation
-  const [animateSchemeRows, setAnimateSchemeRows] = useState(false);
+  const [animateRows, setAnimateRows] = useState(false);
+
+  // Keep a live ref to fsItems/fsDraftById for use in imperative handle
+  const fsItemsRef = useRef(fsItems);
+  const removeSchemeRef = useRef(null);
+  const removeAllAndAddEquityRef = useRef(null);
+  useEffect(() => { fsItemsRef.current = fsItems; }, [fsItems]);
+
+  // ── Validation values from buildings ──────────────────────────────────
+  const totalCapex = useMemo(
+    () => buildings.reduce((s, b) => s + (Number(b.eem_capex) || 0), 0),
+    [buildings],
+  );
+  const minLifetime = useMemo(() => {
+    if (!buildings.length) return null;
+    const m = buildings.reduce((mn, b) => Math.min(mn, Number(b.eem_lifetime) || Infinity), Infinity);
+    return isFinite(m) ? m : null;
+  }, [buildings]);
 
   // ── Initial load ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -92,6 +105,7 @@ const FinancingTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
         setCatalog(Array.isArray(cat) ? cat : []);
         const items = Array.isArray(selected) ? selected : [];
         setFsItems(items);
+        if (onSchemesChange) onSchemesChange(items);
 
         // Seed saved params from server data
         const saved = {};
@@ -121,7 +135,6 @@ const FinancingTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
       try {
         await Promise.all(keys.map((k) => ensureDef(k)));
         if (!mounted) return;
-        // Populate drafts for newly loaded items (that don't have a draft yet)
         setFsDraftById((prev) => {
           const next = { ...(prev || {}) };
           (fsItems || []).forEach((fs) => {
@@ -141,20 +154,10 @@ const FinancingTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
   // ── Entry animation ───────────────────────────────────────────────────
   useEffect(() => {
     if (!loading) {
-      const frame = requestAnimationFrame(() => setAnimateSchemeRows(true));
+      const frame = requestAnimationFrame(() => setAnimateRows(true));
       return () => cancelAnimationFrame(frame);
     }
   }, [loading]);
-
-  // ── Scroll to newly added scheme ──────────────────────────────────────
-  useEffect(() => {
-    if (!scrollToId || !schemeBlockRefs.current[scrollToId]) return;
-    schemeBlockRefs.current[scrollToId].scrollIntoView({
-      behavior: "smooth",
-      block: "nearest",
-    });
-    setScrollToId(null);
-  }, [scrollToId, fsItems]);
 
   // ── Helpers ───────────────────────────────────────────────────────────
   const catalogOptions = useMemo(
@@ -181,6 +184,53 @@ const FinancingTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
   const isDirtyScheme = (fsId) =>
     !paramsEqual(fsDraftById?.[fsId], savedParamsById?.[fsId]);
 
+  // ── Capex overflow check ──────────────────────────────────────────────
+  const getSchemeFinancingAmount = (schemeKey, params) => {
+    const amountFields = ["loan_amount", "guaranteed_savings_amount", "lease_payment"];
+    for (const f of amountFields) {
+      if (params?.[f] != null && params[f] !== "") return Number(params[f]) || 0;
+    }
+    return 0;
+  };
+
+  const getCapexWarning = (editingKey, editingParams) => {
+    if (!totalCapex) return "";
+    const total = (fsItems || []).reduce((s, x) => {
+      const p = x.scheme_key === editingKey
+        ? editingParams
+        : (fsDraftById?.[x.id] ?? x.params ?? {});
+      return s + getSchemeFinancingAmount(x.scheme_key, p);
+    }, 0);
+    if (total > totalCapex) {
+      return `Total financing (€${total.toLocaleString()}) exceeds total building CAPEX (€${totalCapex.toLocaleString()}).`;
+    }
+    return "";
+  };
+
+  // ── Has blocking field errors ─────────────────────────────────────────
+  const hasFieldErrors = (fsId, schemeKey) => {
+    const def = defsByKey?.[schemeKey];
+    if (!def?.fields) return false;
+    const params = fsDraftById?.[fsId] ?? {};
+    const perFieldError = def.fields.some((field) => {
+      const val = params[field.name];
+      if (val === "" || val === undefined || val === null) return false;
+      const n = Number(val);
+      if (isNaN(n)) return false;
+      if (field.name.includes("_percent") && n > 1) return true;
+      if (field.name === "term_years" && minLifetime != null && n > minLifetime) return true;
+      return false;
+    });
+    if (perFieldError) return true;
+    // Cross-field: equity_crowdfunding platform_fee_percent + crowd_share_percent <= 1
+    if (schemeKey === "equity_crowdfunding") {
+      const fee = Number(params.platform_fee_percent) || 0;
+      const share = Number(params.crowd_share_percent) || 0;
+      if (fee + share > 1) return true;
+    }
+    return false;
+  };
+
   // ── Add scheme ────────────────────────────────────────────────────────
   const onSelectAddScheme = async (schemeKey) => {
     if (!schemeKey) return;
@@ -188,6 +238,16 @@ const FinancingTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
     setAddSchemeLoading(true);
     setAddSchemeError("");
     try {
+      // If equity is active, remove it first
+      if (schemeKey !== "equity") {
+        const equityItem = fsItems.find((x) => x.scheme_key === "equity");
+        if (equityItem) {
+          await ExperimentsAPI.removeExperimentFinancingScheme(experimentId, equityItem.id);
+          setFsItems((prev) => prev.filter((x) => x.id !== equityItem.id));
+          setFsDraftById((prev) => { const n = { ...(prev || {}) }; delete n[equityItem.id]; return n; });
+          setSavedParamsById((prev) => { const n = { ...(prev || {}) }; delete n[equityItem.id]; return n; });
+        }
+      }
       const created = await ExperimentsAPI.addExperimentFinancingScheme(experimentId, {
         scheme_type: schemeKey,
         params: {},
@@ -195,10 +255,11 @@ const FinancingTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
       const def = await ensureDef(schemeKey);
       setDefsByKey((prev) => ({ ...(prev || {}), [schemeKey]: def }));
       const defaults = SCHEME_DEFAULTS[schemeKey] || {};
+      const nextItems = [...fsItems.filter((x) => x.scheme_key !== "equity"), created].filter(Boolean);
       setFsDraftById((prev) => ({ ...(prev || {}), [created.id]: { ...defaults } }));
       setSavedParamsById((prev) => ({ ...(prev || {}), [created.id]: created.params ?? {} }));
-      setFsItems((prev) => [...prev, created].filter(Boolean));
-      setScrollToId(created.id);
+      setFsItems(nextItems);
+      if (onSchemesChange) onSchemesChange(nextItems);
       await onReadinessRefresh();
     } catch (err) {
       const { msg, details } = extractApiError(err, "Failed to add financing scheme.");
@@ -209,9 +270,8 @@ const FinancingTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
     }
   };
 
-  // ── Equity exclusive: remove all others then add equity ───────────────
+  // ── Remove all other schemes then add equity ──────────────────────────
   const removeAllAndAddEquity = async () => {
-    setEquityConfirmOpen(false);
     setAddSchemeLoading(true);
     setAddSchemeError("");
     try {
@@ -229,10 +289,11 @@ const FinancingTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
       });
       const def = await ensureDef("equity");
       setDefsByKey((prev) => ({ ...(prev || {}), equity: def }));
+      const nextItems = [created];
       setFsDraftById({ [created.id]: {} });
       setSavedParamsById({ [created.id]: {} });
-      setFsItems([created]);
-      setScrollToId(created.id);
+      setFsItems(nextItems);
+      if (onSchemesChange) onSchemesChange(nextItems);
       await onReadinessRefresh();
     } catch (err) {
       const { msg } = extractApiError(err, "Failed to switch to Equity financing.");
@@ -247,7 +308,9 @@ const FinancingTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
     setFsBusyId(fsId);
     try {
       await ExperimentsAPI.removeExperimentFinancingScheme(experimentId, fsId);
-      setFsItems((prev) => prev.filter((x) => x.id !== fsId));
+      const nextItems = (fsItems || []).filter((x) => x.id !== fsId);
+      setFsItems(nextItems);
+      if (onSchemesChange) onSchemesChange(nextItems);
       setFsDraftById((prev) => {
         const next = { ...(prev || {}) };
         delete next[fsId];
@@ -268,7 +331,8 @@ const FinancingTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
   };
 
   // ── Save scheme params ────────────────────────────────────────────────
-  const patchSchemeParams = async (fsId) => {
+  const patchSchemeParams = async (fsId, schemeKey) => {
+    if (hasFieldErrors(fsId, schemeKey)) return;
     setFsSaveById((p) => ({ ...(p || {}), [fsId]: true }));
     setFsErrorById((p) => ({ ...(p || {}), [fsId]: "" }));
     try {
@@ -292,6 +356,19 @@ const FinancingTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
       setFsSaveById((p) => ({ ...(p || {}), [fsId]: false }));
     }
   };
+
+  // Keep live refs for imperative handle
+  removeSchemeRef.current = removeScheme;
+  removeAllAndAddEquityRef.current = removeAllAndAddEquity;
+
+  // ── Imperative handle (for ExperimentInput equity checkbox) ───────────
+  useImperativeHandle(ref, () => ({
+    addEquity: () => removeAllAndAddEquityRef.current(),
+    removeEquity: () => {
+      const equityItem = fsItemsRef.current.find((x) => x.scheme_key === "equity");
+      if (equityItem) return removeSchemeRef.current(equityItem.id);
+    },
+  }), []);
 
   // ── Render ────────────────────────────────────────────────────────────
   if (loading) {
@@ -322,106 +399,12 @@ const FinancingTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
         </Alert>
       )}
 
-      {/* ── Added scheme blocks ── */}
-      {(fsItems || []).map((fs, idx) => {
-        const def = defsByKey?.[fs.scheme_key];
-        const params = fsDraftById?.[fs.id] ?? fs.params ?? {};
-        const dirty = isDirtyScheme(fs.id);
-        const saving = Boolean(fsSaveById?.[fs.id]);
-
-        return (
-          <Grow
-            key={fs.id}
-            in={animateSchemeRows}
-            timeout={350 + idx * 110}
-            style={{ transformOrigin: "50% 0%" }}
-          >
-            <Paper
-              ref={(el) => { schemeBlockRefs.current[fs.id] = el; }}
-              elevation={0}
-              sx={(theme) => ({ ...glassPanelSx(theme), p: 2, scrollMarginTop: "80px" })}
-            >
-              {/* Header */}
-              <Stack
-                direction="row"
-                alignItems="center"
-                justifyContent="space-between"
-                sx={{ mb: 1 }}
-              >
-                <Typography sx={{ fontWeight: 900, fontStyle: "italic", fontSize: 18 }}>
-                  <Box component="span" sx={{ color: "success.main" }}>
-                    Scheme {idx + 1}:
-                  </Box>{" "}
-                  {fs.display_name || fs.scheme_key}
-                </Typography>
-                <IconButton
-                  aria-label="Remove scheme"
-                  onClick={() => removeScheme(fs.id)}
-                  disabled={fsBusyId === fs.id}
-                  sx={glassDeleteIconButtonSx}
-                >
-                  {fsBusyId === fs.id ? (
-                    <CircularProgress size={20} />
-                  ) : (
-                    <DeleteOutlineIcon />
-                  )}
-                </IconButton>
-              </Stack>
-
-              <SchemeInfoBox schemeKey={fs.scheme_key} compact={false} />
-
-              {fsErrorById?.[fs.id] && (
-                <Alert severity="error" sx={{ borderRadius: 2, mb: 2 }}>
-                  {fsErrorById[fs.id]}
-                </Alert>
-              )}
-
-              {Array.isArray(defsByKey?.[fs.scheme_key]?.fields) &&
-                defsByKey[fs.scheme_key].fields.length > 0 && (
-                  <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 0.5 }}>
-                    <InfoOutlinedIcon sx={{ fontSize: 13, color: "text.disabled" }} />
-                    <Typography sx={{ fontSize: 15, color: "text.disabled", fontStyle: "italic" }}>
-                      Use keyboard ↑ ↓ arrows to step through numeric values
-                    </Typography>
-                  </Stack>
-                )}
-
-              <SchemeFields
-                def={def}
-                params={params}
-                setParams={(updater) =>
-                  setFsDraftById((prev) => {
-                    const curr = prev?.[fs.id] ?? {};
-                    const nextP = typeof updater === "function" ? updater(curr) : updater;
-                    return { ...(prev || {}), [fs.id]: nextP };
-                  })
-                }
-                onBlurSave={() => patchSchemeParams(fs.id)}
-              />
-
-              <Stack direction="row" justifyContent="flex-end" sx={{ mt: 1.5 }}>
-                <AppButton
-                  fullWidth={false}
-                  variant="outlined"
-                  onClick={() => patchSchemeParams(fs.id)}
-                  loading={saving}
-                  disabled={!dirty || saving}
-                  sx={glassGreenButtonSx}
-                >
-                  Save params
-                </AppButton>
-              </Stack>
-            </Paper>
-          </Grow>
-        );
-      })}
-
-      {/* ── Accordion scheme picker ── */}
+      {/* ── Accordion scheme picker with inline config blocks ── */}
       <Box>
         <Box sx={{ display: "flex", justifyContent: "center", mb: 1.5 }}>
           <Box sx={glassTitlePillSx}>
             <Typography sx={{ fontWeight: 800, fontStyle: "italic", color: "text.primary" }}>
-              {addSchemeLoading ? "Adding scheme…" : "+ Add a Financing Scheme"}
+              {addSchemeLoading ? "Updating schemes…" : "+ Add a Financing Scheme"}
             </Typography>
           </Box>
         </Box>
@@ -435,7 +418,7 @@ const FinancingTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
           return (
             <Grow
               key={section.label}
-              in={animateSchemeRows}
+              in={animateRows}
               timeout={300 + sectionIdx * 90}
               style={{ transformOrigin: "50% 0%" }}
             >
@@ -482,7 +465,101 @@ const FinancingTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
                       const catalogEntry = catalogOptions.find((o) => o.key === key);
                       const name = catalogEntry?.name || key;
                       const alreadyAdded = addedSchemeKeys.has(key);
+                      const fsItem = alreadyAdded
+                        ? (fsItems || []).find((x) => x.scheme_key === key)
+                        : null;
 
+                      if (alreadyAdded && fsItem) {
+                        // ── Inline config block ──
+                        const def = defsByKey?.[key];
+                        const params = fsDraftById?.[fsItem.id] ?? fsItem.params ?? {};
+                        const dirty = isDirtyScheme(fsItem.id);
+                        const saving = Boolean(fsSaveById?.[fsItem.id]);
+                        const capexWarning = getCapexWarning(key, params);
+                        const fieldErrors = hasFieldErrors(fsItem.id, key);
+
+                        return (
+                          <Paper
+                            key={key}
+                            elevation={0}
+                            sx={(theme) => ({
+                              ...glassPanelSx(theme),
+                              p: 2,
+                              borderColor: alpha(theme.palette.success.main, 0.35),
+                            })}
+                          >
+                            {/* Header */}
+                            <Stack
+                              direction="row"
+                              alignItems="center"
+                              justifyContent="space-between"
+                              sx={{ mb: 1 }}
+                            >
+                              <Typography sx={{ fontWeight: 900, fontStyle: "italic", fontSize: 17 }}>
+                                <Box component="span" sx={{ color: "success.main" }}>✓</Box>{" "}
+                                {name}
+                              </Typography>
+                              <IconButton
+                                aria-label="Remove scheme"
+                                onClick={() => removeScheme(fsItem.id)}
+                                disabled={fsBusyId === fsItem.id}
+                                sx={glassDeleteIconButtonSx}
+                              >
+                                {fsBusyId === fsItem.id ? (
+                                  <CircularProgress size={20} />
+                                ) : (
+                                  <DeleteOutlineIcon />
+                                )}
+                              </IconButton>
+                            </Stack>
+
+                            <SchemeInfoBox schemeKey={key} compact={false} />
+
+                            {fsErrorById?.[fsItem.id] && (
+                              <Alert severity="error" sx={{ borderRadius: 2, mb: 1 }}>
+                                {fsErrorById[fsItem.id]}
+                              </Alert>
+                            )}
+                            {capexWarning && (
+                              <Alert severity="warning" sx={{ borderRadius: 2, mb: 1 }}>
+                                {capexWarning}
+                              </Alert>
+                            )}
+
+
+                            <SchemeFields
+                              def={def}
+                              params={params}
+                              schemeKey={key}
+                              minLifetime={minLifetime}
+                              setParams={(updater) =>
+                                setFsDraftById((prev) => {
+                                  const curr = prev?.[fsItem.id] ?? {};
+                                  const nextP =
+                                    typeof updater === "function" ? updater(curr) : updater;
+                                  return { ...(prev || {}), [fsItem.id]: nextP };
+                                })
+                              }
+                              onBlurSave={() => patchSchemeParams(fsItem.id, key)}
+                            />
+
+                            <Stack direction="row" justifyContent="flex-end" sx={{ mt: 1.5 }}>
+                              <AppButton
+                                fullWidth={false}
+                                variant="outlined"
+                                onClick={() => patchSchemeParams(fsItem.id, key)}
+                                loading={saving}
+                                disabled={!dirty || saving || fieldErrors}
+                                sx={glassGreenButtonSx}
+                              >
+                                Save params
+                              </AppButton>
+                            </Stack>
+                          </Paper>
+                        );
+                      }
+
+                      // ── Scheme preview with Add button ──
                       return (
                         <Paper
                           key={key}
@@ -490,30 +567,12 @@ const FinancingTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
                           sx={(theme) => ({
                             ...glassPanelSx(theme),
                             p: 1.75,
-                            borderColor: alreadyAdded
-                              ? alpha(theme.palette.success.main, 0.35)
-                              : alpha(theme.palette.common.white, 0.4),
-                            opacity: alreadyAdded ? 0.88 : 1,
                           })}
                         >
                           <Stack direction="row" alignItems="flex-start" spacing={2}>
                             <Box sx={{ flex: 1 }}>
                               <Typography sx={{ fontWeight: 800, fontStyle: "italic", mb: 0.5 }}>
                                 {name}
-                                {alreadyAdded && (
-                                  <Box
-                                    component="span"
-                                    sx={{
-                                      ml: 1,
-                                      fontSize: 12,
-                                      color: "success.main",
-                                      fontStyle: "normal",
-                                      fontWeight: 700,
-                                    }}
-                                  >
-                                    ✓ Added
-                                  </Box>
-                                )}
                               </Typography>
                               <SchemeInfoBox schemeKey={key} compact />
                             </Box>
@@ -522,30 +581,17 @@ const FinancingTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
                               fullWidth={false}
                               variant="contained"
                               startIcon={<AddOutlinedIcon />}
-                              onClick={() => {
-                                if (key === "equity" && fsItems.length > 0) {
-                                  setEquityConfirmOpen(true);
-                                } else {
-                                  onSelectAddScheme(key);
-                                }
-                              }}
-                              disabled={addSchemeLoading || alreadyAdded}
+                              onClick={() => onSelectAddScheme(key)}
+                              disabled={addSchemeLoading}
                               sx={(theme) => ({
                                 ...glassGreenButtonSx(theme),
                                 px: 2.2,
                                 minWidth: 90,
                                 mt: 0.25,
                                 flexShrink: 0,
-                                ...(alreadyAdded && {
-                                  color: alpha(theme.palette.common.white, 0.8),
-                                  background: alpha(theme.palette.success.main, 0.45),
-                                  boxShadow: "none",
-                                  transform: "none",
-                                  filter: "none",
-                                }),
                               })}
                             >
-                              {alreadyAdded ? "Added" : "Add"}
+                              Add
                             </AppButton>
                           </Stack>
                         </Paper>
@@ -558,47 +604,8 @@ const FinancingTab = ({ experimentId, onReadinessRefresh, onPageError }) => {
           );
         })}
       </Box>
-
-      {/* ── Equity confirmation dialog ── */}
-      <Dialog
-        open={equityConfirmOpen}
-        onClose={() => setEquityConfirmOpen(false)}
-        PaperProps={{
-          sx: (theme) => ({
-            borderRadius: 3,
-            border: "1px solid",
-            borderColor: alpha(theme.palette.common.white, 0.45),
-            background: `linear-gradient(135deg, ${alpha(theme.palette.common.white, 0.92)} 0%, ${alpha(
-              theme.palette.warning.main,
-              0.06,
-            )} 100%)`,
-            backdropFilter: "blur(18px)",
-            boxShadow: `0 24px 60px ${alpha(theme.palette.common.black, 0.18)}`,
-          }),
-        }}
-      >
-        <DialogTitle sx={{ fontWeight: 900, fontStyle: "italic" }}>
-          Switch to Equity (Self-Financing)?
-        </DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Equity means you are financing{" "}
-            <strong>100% of the project yourself</strong>. Selecting it will remove all{" "}
-            {fsItems.length} other financing scheme
-            {fsItems.length !== 1 ? "s" : ""} currently added to this experiment.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
-          <Button onClick={() => setEquityConfirmOpen(false)} sx={glassGhostButtonSx}>
-            Cancel
-          </Button>
-          <Button onClick={removeAllAndAddEquity} sx={glassGreenButtonSx}>
-            Confirm
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Stack>
   );
-};
+});
 
 export default FinancingTab;

@@ -1,12 +1,20 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Box,
+  Button,
+  Checkbox,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControlLabel,
   Paper,
   Stack,
   Typography,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 
 import ArrowBackIosNewRoundedIcon from "@mui/icons-material/ArrowBackIosNewRounded";
 import ArrowForwardIosRoundedIcon from "@mui/icons-material/ArrowForwardIosRounded";
@@ -16,8 +24,10 @@ import ExperimentsAPI from "../api/experiments";
 import { AppButton } from "../components";
 import BuildingsTab from "../components/experiment-input/BuildingsTab";
 import FinancingTab from "../components/experiment-input/FinancingTab";
+import SchemeInfoBox from "../components/experiment-input/SchemeInfoBox";
 import {
   extractApiError,
+  glassGhostButtonSx,
   glassGreenButtonSx,
   glassTabPillSx,
 } from "../components/experiment-input/constants";
@@ -25,9 +35,8 @@ import {
 // ---------------------------------------------------------------------------
 // ExperimentInput
 //
-// Coordinator component: owns only cross-cutting concerns (tab state, readiness,
-// run lifecycle, page-level errors). Buildings and financing concerns are fully
-// delegated to BuildingsTab and FinancingTab respectively.
+// Coordinator component: owns tab state, readiness, run lifecycle, page-level
+// errors. Buildings and financing concerns are fully delegated to child tabs.
 //
 // URL: /experiments/input?id=<experimentId>
 // ---------------------------------------------------------------------------
@@ -37,20 +46,27 @@ const ExperimentInput = () => {
   const navigate = useNavigate();
 
   const [tab, setTab] = useState("buildings");
-  // Lazy-mount pattern: once a tab is added to this set it stays mounted
-  // (hidden via display:none) so its local state is preserved on tab switches.
+  // Lazy-mount pattern: once a tab is added it stays mounted (hidden via display:none)
   const [mountedTabs, setMountedTabs] = useState(() => new Set(["buildings"]));
 
   const [coreLoading, setCoreLoading] = useState(true);
   const [pageError, setPageError] = useState("");
   const [experiment, setExperiment] = useState(null);
 
-  // Readiness drives the Run button
-  const [readiness, setReadiness] = useState(null);
-  const [readinessLoading, setReadinessLoading] = useState(false);
+  // Track child state for local readiness + equity
+  const [buildings, setBuildings] = useState([]);
+  const [fsItems, setFsItems] = useState([]);
+
   const [runLoading, setRunLoading] = useState(false);
 
-  // ── Load experiment metadata + readiness on mount ─────────────────────
+  // Equity dialog (confirmation before adding equity)
+  const [equityDialogOpen, setEquityDialogOpen] = useState(false);
+  const [equityActionLoading, setEquityActionLoading] = useState(false);
+
+  // Ref to FinancingTab imperative handle
+  const financingTabRef = useRef(null);
+
+  // ── Load experiment metadata on mount ────────────────────────────────
   useEffect(() => {
     if (!experimentId) {
       setPageError("No experiment ID provided.");
@@ -62,13 +78,9 @@ const ExperimentInput = () => {
       setCoreLoading(true);
       setPageError("");
       try {
-        const [exp, ready] = await Promise.all([
-          ExperimentsAPI.get(experimentId),
-          ExperimentsAPI.getReadiness(experimentId),
-        ]);
+        const exp = await ExperimentsAPI.get(experimentId);
         if (!mounted) return;
         setExperiment(exp || null);
-        setReadiness(ready || null);
       } catch (err) {
         if (!mounted) return;
         const { msg } = extractApiError(err, "Failed to load experiment.");
@@ -81,20 +93,15 @@ const ExperimentInput = () => {
   }, [experimentId]);
 
   // ── Readiness refresh (called by child tabs after data mutations) ──────
-  const refreshReadiness = async () => {
-    if (!experimentId) return;
-    setReadinessLoading(true);
-    try {
-      const r = await ExperimentsAPI.getReadiness(experimentId);
-      setReadiness(r || null);
-    } catch {
-      // non-fatal
-    } finally {
-      setReadinessLoading(false);
-    }
-  };
+  // No-op: readiness is now computed locally from buildings + fsItems.
+  // Keep the call signature so child tabs don't need changes.
+  const refreshReadiness = async () => {};
 
-  // ── Tab switch: ensure the target tab component is mounted ────────────
+  // ── Local readiness: >= 1 building AND >= 1 selected scheme ──────────
+  const isReady = buildings.length >= 1 && fsItems.length >= 1;
+  const hasEquity = fsItems.some((x) => x.scheme_key === "equity");
+
+  // ── Tab switch ────────────────────────────────────────────────────────
   const switchTab = (newTab) => {
     setTab(newTab);
     setMountedTabs((prev) => {
@@ -108,8 +115,6 @@ const ExperimentInput = () => {
   const goPrevious = () => switchTab("buildings");
 
   // ── Run ────────────────────────────────────────────────────────────────
-  const isReady = Boolean(readiness?.is_ready);
-
   const onRun = async () => {
     setRunLoading(true);
     setPageError("");
@@ -121,6 +126,30 @@ const ExperimentInput = () => {
       setPageError(msg);
     } finally {
       setRunLoading(false);
+    }
+  };
+
+  // ── Equity checkbox logic ─────────────────────────────────────────────
+  const handleEquityToggle = () => {
+    if (hasEquity) {
+      // Uncheck: remove the equity scheme
+      setEquityActionLoading(true);
+      Promise.resolve(financingTabRef.current?.removeEquity()).finally(() =>
+        setEquityActionLoading(false),
+      );
+    } else {
+      // Check: open confirmation dialog (equity clears all other schemes)
+      setEquityDialogOpen(true);
+    }
+  };
+
+  const handleEquityConfirm = async () => {
+    setEquityDialogOpen(false);
+    setEquityActionLoading(true);
+    try {
+      await financingTabRef.current?.addEquity();
+    } finally {
+      setEquityActionLoading(false);
     }
   };
 
@@ -215,6 +244,49 @@ const ExperimentInput = () => {
         </Box>
       </Stack>
 
+      {/* EQUITY CHECKBOX — shown below Run button when on financing tab */}
+      {tab === "financing" && (
+        <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
+          <Paper
+            elevation={0}
+            sx={(theme) => ({
+              display: "inline-flex",
+              alignItems: "center",
+              px: 2,
+              py: 0.75,
+              borderRadius: "999px",
+              border: "1px solid",
+              borderColor: hasEquity
+                ? alpha(theme.palette.success.main, 0.4)
+                : alpha(theme.palette.common.white, 0.55),
+              background: hasEquity
+                ? `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.12)} 0%, ${alpha(theme.palette.success.light, 0.08)} 100%)`
+                : `linear-gradient(135deg, ${alpha(theme.palette.common.white, 0.72)} 0%, ${alpha(theme.palette.grey[100], 0.5)} 100%)`,
+              backdropFilter: "blur(14px)",
+              boxShadow: `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.6)}, 0 6px 16px ${alpha(theme.palette.common.black, 0.07)}`,
+            })}
+          >
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={hasEquity}
+                  onChange={handleEquityToggle}
+                  disabled={equityActionLoading || runLoading}
+                  size="small"
+                  sx={{ color: "success.main", "&.Mui-checked": { color: "success.main" } }}
+                />
+              }
+              label={
+                <Typography sx={{ fontWeight: 800, fontStyle: "italic", fontSize: 14 }}>
+                  Equity (Self-Financing)
+                </Typography>
+              }
+              sx={{ m: 0 }}
+            />
+          </Paper>
+        </Box>
+      )}
+
       {/* TAB PILLS */}
       <Stack
         direction="row"
@@ -235,12 +307,7 @@ const ExperimentInput = () => {
           </Typography>
         </Box>
 
-        <Box
-          onClick={() => {
-            switchTab("financing");
-          }}
-          sx={glassTabPillSx(tab === "financing")}
-        >
+        <Box onClick={() => switchTab("financing")} sx={glassTabPillSx(tab === "financing")}>
           <Typography
             sx={{
               fontWeight: 800,
@@ -292,29 +359,72 @@ const ExperimentInput = () => {
             boxShadow: `inset 0 1px 0 rgba(255,255,255,0.35)`,
           })}
         >
-          {/* Buildings tab — lazy-mounted, hidden when inactive */}
           {mountedTabs.has("buildings") && (
             <Box sx={{ display: tab === "buildings" ? undefined : "none" }}>
               <BuildingsTab
                 experimentId={experimentId}
                 onReadinessRefresh={refreshReadiness}
                 onPageError={setPageError}
+                onBuildingsChange={setBuildings}
               />
             </Box>
           )}
 
-          {/* Financing tab — lazy-mounted on first visit, hidden when inactive */}
           {mountedTabs.has("financing") && (
             <Box sx={{ display: tab === "financing" ? undefined : "none" }}>
               <FinancingTab
+                ref={financingTabRef}
                 experimentId={experimentId}
+                buildings={buildings}
                 onReadinessRefresh={refreshReadiness}
                 onPageError={setPageError}
+                onSchemesChange={setFsItems}
               />
             </Box>
           )}
         </Box>
       </Box>
+
+      {/* EQUITY CONFIRMATION DIALOG */}
+      <Dialog
+        open={equityDialogOpen}
+        onClose={() => setEquityDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: (theme) => ({
+            borderRadius: 3,
+            background: theme.palette.common.white,
+            boxShadow: `0 24px 60px ${alpha(theme.palette.common.black, 0.18)}`,
+          }),
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 900, fontStyle: "italic" }}>
+          Switch to Equity (Self-Financing)?
+        </DialogTitle>
+        <DialogContent>
+          <SchemeInfoBox schemeKey="equity" compact={false} />
+          {fsItems.filter((x) => x.scheme_key !== "equity").length > 0 && (
+            <Typography sx={{ mt: 1.5, fontSize: 14, color: "warning.dark", fontWeight: 700 }}>
+              ⚠ Selecting equity will remove the{" "}
+              {fsItems.filter((x) => x.scheme_key !== "equity").length} other financing scheme
+              {fsItems.filter((x) => x.scheme_key !== "equity").length !== 1 ? "s" : ""} currently
+              added to this experiment. Equity is mutually exclusive with all other schemes.
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+          <Button
+            onClick={() => setEquityDialogOpen(false)}
+            sx={glassGhostButtonSx}
+          >
+            Cancel
+          </Button>
+          <Button onClick={handleEquityConfirm} sx={glassGreenButtonSx}>
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

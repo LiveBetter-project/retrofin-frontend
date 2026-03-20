@@ -1,17 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
-import {
-  IconButton,
-  InputAdornment,
-  TextField,
-} from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
+import { IconButton, InputAdornment, TextField } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
-import RemoveIcon from "@mui/icons-material/Remove";
 
 /**
  * A text-based numeric input that:
- * - Shows visible  [−]  and  [+]  step buttons at each end of the field
- * - Shows a clear [×] button (end adornment, right of the [+]) when value exists
  * - Uses comma (,) as the decimal separator for display
  * - Accepts both "." and "," as decimal input (normalises to comma in display)
  * - Blocks letters, symbols, minus, and plus keys
@@ -19,6 +11,7 @@ import RemoveIcon from "@mui/icons-material/Remove";
  * - Clamps values to `min` (default 0) on blur — prevents negatives
  * - Emits values via onChange as dot-notation numeric strings (e.g. "3.14")
  * - For integer=true: blocks decimal separators entirely
+ * - Shows a clear [×] button when value exists
  */
 const NumericInput = ({
   value,
@@ -61,7 +54,7 @@ const NumericInput = ({
     if (onChange) onChange({ target: { name, value: dotStr } });
   };
 
-  // ── Step logic ──────────────────────────────────────────────────────────
+  // ── Step logic (keyboard only) ───────────────────────────────────────────
   const effectiveStep = step ?? (integer ? 1 : 1);
 
   const applyStep = (direction) => {
@@ -70,7 +63,6 @@ const NumericInput = ({
       ? current + effectiveStep
       : current - effectiveStep;
     if (min !== undefined && next < min) next = min;
-    // Round to avoid floating-point drift (e.g. 0.1 + 0.2 = 0.30000000000000004)
     const decimals = integer ? 0 : Math.max(
       (String(effectiveStep).split(".")[1] || "").length,
       (String(current).split(".")[1] || "").length
@@ -89,8 +81,7 @@ const NumericInput = ({
     if (CONTROL_KEYS.includes(e.key)) return;
     if (e.ctrlKey || e.metaKey) return;
 
-    if (e.key === "ArrowUp")   { e.preventDefault(); applyStep("up");   return; }
-    if (e.key === "ArrowDown") { e.preventDefault(); applyStep("down"); return; }
+    if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); return; }
     if (e.key === "-" || e.key === "+") { e.preventDefault(); return; }
 
     if (integer) {
@@ -136,16 +127,6 @@ const NumericInput = ({
 
   const showClear = !disabled && display !== "" && display !== null;
 
-  // ── Shared button sx ────────────────────────────────────────────────────
-  const stepBtnSx = {
-    bgcolor: "grey.200",
-    borderRadius: "6px",
-    width: 28,
-    height: 28,
-    "&:hover": { bgcolor: "grey.300" },
-    "&.Mui-disabled": { opacity: 0.35 },
-  };
-
   return (
     <TextField
       label={label}
@@ -163,50 +144,24 @@ const NumericInput = ({
       size="medium"
       sx={{
         "& .MuiOutlinedInput-root": { borderRadius: 2, bgcolor: "common.white" },
+        "& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button": { display: "none" },
+        "& input[type=number]": { MozAppearance: "textfield" },
       }}
       InputProps={{
-        startAdornment: (
-          <InputAdornment position="start">
-            <IconButton
-              tabIndex={-1}
-              aria-label="decrease"
-              onClick={() => applyStep("down")}
-              disabled={disabled}
-              size="small"
-              sx={stepBtnSx}
-            >
-              <RemoveIcon sx={{ fontSize: 16 }} />
-            </IconButton>
-          </InputAdornment>
-        ),
-        endAdornment: (
+        endAdornment: showClear ? (
           <InputAdornment position="end">
             <IconButton
               tabIndex={-1}
-              aria-label="increase"
-              onClick={() => applyStep("up")}
-              disabled={disabled}
+              aria-label="clear"
+              onClick={handleClear}
+              edge="end"
               size="small"
-              sx={stepBtnSx}
             >
-              <AddIcon sx={{ fontSize: 16 }} />
+              <ClearIcon sx={{ fontSize: 16 }} />
             </IconButton>
-            {showClear && (
-              <IconButton
-                tabIndex={-1}
-                aria-label="clear"
-                onClick={handleClear}
-                edge="end"
-                size="small"
-                sx={{ ml: 0.25 }}
-              >
-                <ClearIcon sx={{ fontSize: 16 }} />
-              </IconButton>
-            )}
           </InputAdornment>
-        ),
+        ) : undefined,
       }}
-      // Pass through any remaining props (e.g. inputProps for placeholder/step)
       {...rest}
     />
   );

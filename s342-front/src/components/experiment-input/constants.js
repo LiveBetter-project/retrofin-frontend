@@ -229,7 +229,6 @@ export const SCHEME_INFO = {
 // ---------------------------------------------------------------------------
 export const SCHEME_SECTIONS = [
   { label: "Bank Loan", schemes: ["bank_loan"] },
-  { label: "Equity", schemes: ["equity"] },
   {
     label: "Crowdfunding",
     schemes: [

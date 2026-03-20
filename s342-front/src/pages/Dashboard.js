@@ -491,7 +491,9 @@ const Dashboard = () => {
                         <IconButton
                           aria-label="View"
                           onClick={() =>
-                            navigate(`/experiments/${r.id}/output`)
+                            r.status === "draft"
+                              ? navigate(`/experiments/input?id=${r.id}`)
+                              : navigate(`/experiments/output?id=${r.id}`)
                           }
                           sx={(theme) => ({
                             color: "text.primary",
