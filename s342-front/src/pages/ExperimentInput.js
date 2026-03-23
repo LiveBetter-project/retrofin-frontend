@@ -30,6 +30,7 @@ import {
   glassGhostButtonSx,
   glassGreenButtonSx,
   glassTabPillSx,
+  pageHeaderPillSx,
 } from "../components/experiment-input/constants";
 
 // ---------------------------------------------------------------------------
@@ -186,23 +187,7 @@ const ExperimentInput = () => {
           )}
         </Box>
 
-        <Box
-          sx={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            borderRadius: "999px",
-            px: 4,
-            py: 1.1,
-            border: "2px solid",
-            borderColor: "secondary.main",
-            bgcolor: "common.white",
-            boxShadow: "0 6px 14px rgba(0,0,0,0.18)",
-            cursor: "default",
-            userSelect: "none",
-            pointerEvents: "none",
-          }}
-        >
+        <Box sx={pageHeaderPillSx}>
           <Stack direction="row" spacing={0.75} alignItems="baseline">
             <Typography
               sx={{ color: "success.main", fontWeight: 900, fontStyle: "italic", fontSize: 26 }}

@@ -38,13 +38,13 @@ const SchemeFields = ({ def, params, schemeKey, setParams, onBlurSave, minLifeti
     const n = Number(val);
     if (isNaN(n)) return "";
     if (field.name.includes("_percent") && n > 1) return "Must be ≤ 1.0 (100%).";
-    if (
-      field.name === "term_years" &&
-      minLifetime != null &&
-      isFinite(minLifetime) &&
-      n > minLifetime
-    ) {
-      return `Must be ≤ ${minLifetime} yr (min building lifetime).`;
+    if (field.name === "term_years") {
+      const maxTerm = minLifetime != null && isFinite(minLifetime) ? Math.min(100, minLifetime) : 100;
+      if (n > maxTerm) {
+        return minLifetime != null && minLifetime < 100
+          ? `Must be ≤ ${minLifetime} yr (min building lifetime).`
+          : `Must be ≤ 100 yr.`;
+      }
     }
     return "";
   };

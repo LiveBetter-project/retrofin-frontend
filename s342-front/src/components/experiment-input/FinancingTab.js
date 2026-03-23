@@ -195,14 +195,9 @@ const FinancingTab = React.forwardRef(function FinancingTab(
 
   const getCapexWarning = (editingKey, editingParams) => {
     if (!totalCapex) return "";
-    const total = (fsItems || []).reduce((s, x) => {
-      const p = x.scheme_key === editingKey
-        ? editingParams
-        : (fsDraftById?.[x.id] ?? x.params ?? {});
-      return s + getSchemeFinancingAmount(x.scheme_key, p);
-    }, 0);
-    if (total > totalCapex) {
-      return `Total financing (€${total.toLocaleString()}) exceeds total building CAPEX (€${totalCapex.toLocaleString()}).`;
+    const amount = getSchemeFinancingAmount(editingKey, editingParams);
+    if (amount > totalCapex) {
+      return `Financing amount (€${amount.toLocaleString()}) exceeds total building CAPEX (€${totalCapex.toLocaleString()}).`;
     }
     return "";
   };
@@ -218,7 +213,10 @@ const FinancingTab = React.forwardRef(function FinancingTab(
       const n = Number(val);
       if (isNaN(n)) return false;
       if (field.name.includes("_percent") && n > 1) return true;
-      if (field.name === "term_years" && minLifetime != null && n > minLifetime) return true;
+      if (field.name === "term_years") {
+        const maxTerm = minLifetime != null ? Math.min(100, minLifetime) : 100;
+        if (n > maxTerm) return true;
+      }
       return false;
     });
     if (perFieldError) return true;

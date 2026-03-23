@@ -429,19 +429,92 @@ export const glassTitlePillSx = (theme) => ({
 });
 
 export const glassTabPillSx = (active) => (theme) => ({
-  ...glassTitlePillSx(theme),
+  display: "inline-flex",
+  alignItems: "center",
+  px: 2.4,
+  py: 1.05,
+  borderRadius: "999px",
+  border: "1px solid",
   cursor: "pointer",
-  opacity: active ? 1 : 0.72,
   borderColor: active
-    ? alpha(theme.palette.common.white, 0.55)
-    : alpha(theme.palette.common.white, 0.3),
-  background: `linear-gradient(135deg, ${alpha(
-    theme.palette.common.white,
-    active ? 0.74 : 0.48,
-  )} 0%, ${alpha(theme.palette.success.main, active ? 0.08 : 0.03)} 100%)`,
-  transition: "transform 180ms ease, opacity 180ms ease, border-color 180ms ease",
+    ? alpha(theme.palette.success.main, 1)
+    : alpha(theme.palette.common.black, 0.10),
+  background: active
+    ? alpha(theme.palette.success.main, 0.09)
+    : alpha(theme.palette.common.black, 0.04),
+  boxShadow: active
+    ? `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.75)}, 0 2px 8px ${alpha(theme.palette.success.main, 0.10)}`
+    : `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.65)}`,
+  transition: "background 180ms ease, border-color 180ms ease, transform 180ms ease",
   "&:hover": {
-    opacity: 1,
+    transform: "translateY(-1px)",
+    borderColor: active
+      ? alpha(theme.palette.success.main, 0.50)
+      : alpha(theme.palette.common.black, 0.18),
+    background: active
+      ? alpha(theme.palette.success.main, 0.12)
+      : alpha(theme.palette.common.black, 0.07),
+  },
+});
+
+// Shared top-level page header pill — "New Experiment", "Experiment History", etc.
+// Plain object: uses MUI system shorthand values only (no raw theme access needed).
+export const pageHeaderPillSx = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  borderRadius: "999px",
+  px: 4,
+  py: 1.1,
+  border: "2px solid",
+  borderColor: "secondary.main",
+  bgcolor: "common.white",
+  boxShadow: "0 6px 14px rgba(0,0,0,0.18)",
+  cursor: "default",
+  userSelect: "none",
+  pointerEvents: "none",
+};
+
+// Quiet warm pill — section label with warm tint and subtle pink accent (e.g. "Experiment History")
+export const quietWarmPillSx = (theme) => ({
+  display: "inline-flex",
+  alignItems: "center",
+  px: 2.4,
+  py: 1.05,
+  borderRadius: "999px",
+  border: "1px solid",
+  borderColor: alpha("#F03157", 0.18),
+  background: alpha("#ECC896", 0.22),
+  boxShadow: `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.80)}, 0 2px 6px ${alpha(theme.palette.common.black, 0.05)}`,
+});
+
+// Quiet green pill — section label with subtle green accent (e.g. "New Building")
+export const quietGreenPillSx = (theme) => ({
+  display: "inline-flex",
+  alignItems: "center",
+  px: 2.4,
+  py: 1.05,
+  borderRadius: "999px",
+  border: "1px solid",
+  borderColor: alpha(theme.palette.success.main, 1),
+  background: alpha(theme.palette.success.main, 0.2),
+  boxShadow: `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.80)}, 0 2px 6px ${alpha(theme.palette.common.black, 0.04)}`,
+});
+
+// Subdued ghost danger button — secondary/cancel actions (e.g. "Cancel" in building form)
+export const cancelButtonSx = (theme) => ({
+  color: theme.palette.secondary.main,
+  background: alpha(theme.palette.secondary.main, 0.05),
+  border: "1px solid",
+  borderColor: alpha(theme.palette.secondary.main, 0.22),
+  borderRadius: "999px",
+  px: 3.2,
+  py: 1.1,
+  fontWeight: 800,
+  transition: "background 180ms ease, border-color 180ms ease, transform 180ms ease",
+  "&:hover": {
+    background: alpha(theme.palette.secondary.main, 0.10),
+    borderColor: alpha(theme.palette.secondary.main, 0.38),
     transform: "translateY(-1px)",
   },
 });

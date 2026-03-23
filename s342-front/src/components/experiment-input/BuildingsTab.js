@@ -21,14 +21,14 @@ import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import ExperimentsAPI from "../../api/experiments";
 import { AppButton, NumericInput, TextInput } from "../index";
 import {
+  cancelButtonSx,
   emptyBuilding,
   extractApiError,
   glassDeleteIconButtonSx,
-  glassGhostButtonSx,
   glassGreenButtonSx,
   glassPanelSx,
-  glassTitlePillSx,
   glassViewIconButtonSx,
+  quietGreenPillSx,
 } from "./constants";
 
 /**
@@ -133,8 +133,30 @@ const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError, onBuildin
     return "";
   })();
 
+  // ── Year of construction validation (> 1900) ──────────────────────────
+  const yearOfConstructionError = (() => {
+    const y = buildingDraft.year_of_construction;
+    if (y !== "" && y !== null && Number(y) <= 1900) return "Must be after 1900.";
+    return "";
+  })();
+
+  // ── Lifetime validation (≤ 100) ───────────────────────────────────────
+  const lifetimeError = (() => {
+    const lt = buildingDraft.eem_lifetime;
+    if (lt !== "" && lt !== null && Number(lt) > 100) return "Maximum lifetime is 100 years.";
+    return "";
+  })();
+
   // ── Save ──────────────────────────────────────────────────────────────
   const saveBuilding = async () => {
+    if (yearOfConstructionError) {
+      setBuildingFormError(`Year of Construction: ${yearOfConstructionError}`);
+      return;
+    }
+    if (lifetimeError) {
+      setBuildingFormError(`Lifetime: ${lifetimeError}`);
+      return;
+    }
     if (maintenanceCostError) {
       setBuildingFormError(`Annual Maintenance Cost: ${maintenanceCostError}`);
       return;
@@ -251,16 +273,18 @@ const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError, onBuildin
           ))}
         </Stack>
 
-        <Stack alignItems="center" sx={{ mt: 3 }}>
-          <AppButton
-            fullWidth={false}
-            onClick={openCreateBuilding}
-            startIcon={<AddOutlinedIcon />}
-            sx={glassGreenButtonSx}
-          >
-            Add Building
-          </AppButton>
-        </Stack>
+        {buildings.length === 0 && (
+          <Stack alignItems="center" sx={{ mt: 3 }}>
+            <AppButton
+              fullWidth={false}
+              onClick={openCreateBuilding}
+              startIcon={<AddOutlinedIcon />}
+              sx={glassGreenButtonSx}
+            >
+              Add Building
+            </AppButton>
+          </Stack>
+        )}
       </Box>
     );
   }
@@ -280,8 +304,8 @@ const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError, onBuildin
         justifyContent="space-between"
         sx={{ mb: 2 }}
       >
-        <Box sx={glassTitlePillSx}>
-          <Typography sx={{ color: "success.main", fontWeight: 900, fontStyle: "italic" }}>
+        <Box sx={quietGreenPillSx}>
+          <Typography sx={{ color: "primary.main", fontWeight: 900, fontStyle: "italic" }}>
             {editingBuildingId
               ? `Building ${buildings.findIndex((b) => b.id === editingBuildingId) + 1}`
               : "New Building"}
@@ -377,10 +401,10 @@ const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError, onBuildin
             >
               <Stack spacing={2} sx={{ width: "100%" }}>
                 {[
-                  { label: "Year of Construction", field: "year_of_construction", integer: true, min: 1800, step: 1 },
+                  { label: "Year of Construction", field: "year_of_construction", integer: true, min: 1901, step: 1, errorFn: () => yearOfConstructionError },
                   { label: "Floor Area (m²)", field: "floor_area", min: 0, step: 50 },
-                ].map(({ label, field, integer, min, step }) => (
-                  <Stack direction="row" alignItems="center" spacing={2} key={field}>
+                ].map(({ label, field, integer, min, step, errorFn }) => (
+                  <Stack direction="row" alignItems="flex-start" spacing={2} key={field}>
                     <Typography
                       sx={{
                         width: 150,
@@ -388,6 +412,7 @@ const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError, onBuildin
                         fontWeight: 900,
                         fontStyle: "italic",
                         flexShrink: 0,
+                        pt: errorFn?.() ? 0.5 : 0,
                       }}
                     >
                       {label}
@@ -398,6 +423,7 @@ const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError, onBuildin
                         integer={integer}
                         min={min}
                         step={step}
+                        error={errorFn?.()}
                         onChange={(e) =>
                           setBuildingDraft((p) => ({ ...p, [field]: e.target.value }))
                         }
@@ -486,7 +512,7 @@ const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError, onBuildin
             <Stack spacing={2} sx={{ width: 420 }}>
               {[
                 { label: "Annual Maintenance Cost (€)", field: "eem_maintenance_cost", min: 0, step: 1000, errorFn: () => maintenanceCostError },
-                { label: "Lifetime (years)", field: "eem_lifetime", integer: true, min: 1, step: 1 },
+                { label: "Lifetime (years)", field: "eem_lifetime", integer: true, min: 1, step: 1, errorFn: () => lifetimeError },
               ].map(({ label, field, integer, min, step, errorFn }) => (
                 <Stack direction="row" alignItems="flex-start" spacing={2} key={field}>
                   <Typography
@@ -528,7 +554,7 @@ const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError, onBuildin
             setScreen("list");
             setEditingBuildingId(null);
           }}
-          sx={glassGhostButtonSx}
+          sx={cancelButtonSx}
         >
           Cancel
         </AppButton>

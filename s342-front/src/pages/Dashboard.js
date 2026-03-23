@@ -25,6 +25,7 @@ import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 
 import ExperimentsAPI from "../api/experiments";
 import TextInput from "../components/TextInput";
+import { pageHeaderPillSx } from "../components/experiment-input/constants";
 
 const formatDDMMYY = (iso) => {
   if (!iso) return "—";
@@ -258,6 +259,66 @@ const Dashboard = () => {
         </DialogActions>
       </Dialog>
 
+      {/* ── Dashboard header — outside the frame ── */}
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        sx={{ mb: 3 }}
+      >
+        <Box sx={{ width: 220 }} />
+
+        <Box sx={pageHeaderPillSx}>
+          <Stack direction="row" spacing={0.75} alignItems="baseline">
+            <Typography
+              sx={{ color: "success.main", fontWeight: 900, fontStyle: "italic", fontSize: 26 }}
+            >
+              Experiment
+            </Typography>
+            <Typography
+              sx={{ color: "text.primary", fontWeight: 900, fontStyle: "italic", fontSize: 26 }}
+            >
+              History
+            </Typography>
+          </Stack>
+        </Box>
+
+        <Box sx={{ width: 220, display: "flex", justifyContent: "flex-end" }}>
+          <Button
+            onClick={onOpenDialog}
+            disabled={creating}
+            variant="contained"
+            startIcon={<PlayArrowIcon />}
+            sx={(theme) => ({
+              color: theme.palette.common.white,
+              background: `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.dark} 100%)`,
+              border: "1px solid",
+              borderColor: alpha(theme.palette.common.white, 0.24),
+              borderRadius: "999px",
+              px: 3.2,
+              py: 1.1,
+              fontWeight: 800,
+              backdropFilter: "blur(14px)",
+              boxShadow: `0 14px 32px ${alpha(theme.palette.success.main, 0.3)}`,
+              transition:
+                "transform 180ms ease, box-shadow 180ms ease, filter 180ms ease",
+              "&:hover": {
+                background: `linear-gradient(135deg, ${theme.palette.success.dark} 0%, ${theme.palette.success.main} 100%)`,
+                transform: "translateY(-2px)",
+                boxShadow: `0 18px 36px ${alpha(theme.palette.success.main, 0.36)}`,
+                filter: "brightness(1.03)",
+              },
+              "&.Mui-disabled": {
+                color: alpha(theme.palette.common.white, 0.8),
+                background: alpha(theme.palette.success.main, 0.45),
+              },
+            })}
+          >
+            New
+          </Button>
+        </Box>
+      </Stack>
+
       {/* ── Main dashboard ── */}
       <Box
         sx={(theme) => ({
@@ -278,71 +339,6 @@ const Dashboard = () => {
             boxShadow: `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.35)}`,
           })}
         >
-          <Stack
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-            sx={{ mb: 3 }}
-          >
-            <Box
-              sx={(theme) => ({
-                display: "inline-flex",
-                alignItems: "center",
-                px: 2.4,
-                py: 1.05,
-                borderRadius: "999px",
-                border: "1px solid",
-                borderColor: alpha(theme.palette.common.white, 0.55),
-                background: `linear-gradient(135deg, ${alpha(theme.palette.common.white, 0.72)} 0%, ${alpha(
-                  theme.palette.secondary.main,
-                  0.12,
-                )} 100%)`,
-                backdropFilter: "blur(16px)",
-                boxShadow: `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.65)}, 0 10px 24px ${alpha(
-                  theme.palette.common.black,
-                  0.08,
-                )}`,
-              })}
-            >
-              <Typography sx={{ fontWeight: 800, fontStyle: "italic" }}>
-                Experiment History
-              </Typography>
-            </Box>
-
-            <Button
-              onClick={onOpenDialog}
-              disabled={creating}
-              variant="contained"
-              startIcon={<PlayArrowIcon />}
-              sx={(theme) => ({
-                color: theme.palette.common.white,
-                background: `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.dark} 100%)`,
-                border: "1px solid",
-                borderColor: alpha(theme.palette.common.white, 0.24),
-                borderRadius: "999px",
-                px: 3.2,
-                py: 1.1,
-                fontWeight: 800,
-                backdropFilter: "blur(14px)",
-                boxShadow: `0 14px 32px ${alpha(theme.palette.success.main, 0.3)}`,
-                transition:
-                  "transform 180ms ease, box-shadow 180ms ease, filter 180ms ease",
-                "&:hover": {
-                  background: `linear-gradient(135deg, ${theme.palette.success.dark} 0%, ${theme.palette.success.main} 100%)`,
-                  transform: "translateY(-2px)",
-                  boxShadow: `0 18px 36px ${alpha(theme.palette.success.main, 0.36)}`,
-                  filter: "brightness(1.03)",
-                },
-                "&.Mui-disabled": {
-                  color: alpha(theme.palette.common.white, 0.8),
-                  background: alpha(theme.palette.success.main, 0.45),
-                },
-              })}
-            >
-              New
-            </Button>
-          </Stack>
-
           <Stack direction="row" sx={{ mb: 1.25, px: 1 }}>
             <Typography
               sx={{
