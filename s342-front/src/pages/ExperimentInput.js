@@ -58,6 +58,8 @@ const ExperimentInput = () => {
   const [buildings, setBuildings] = useState([]);
   const [fsItems, setFsItems] = useState([]);
 
+  const [financingReady, setFinancingReady] = useState(false);
+
   const [runLoading, setRunLoading] = useState(false);
 
   // Equity dialog (confirmation before adding equity)
@@ -99,7 +101,7 @@ const ExperimentInput = () => {
   const refreshReadiness = async () => {};
 
   // ── Local readiness: >= 1 building AND >= 1 selected scheme ──────────
-  const isReady = buildings.length >= 1 && fsItems.length >= 1;
+  const isReady = buildings.length >= 1 && financingReady;
   const hasEquity = fsItems.some((x) => x.scheme_key === "equity");
 
   // ── Tab switch ────────────────────────────────────────────────────────
@@ -229,86 +231,108 @@ const ExperimentInput = () => {
         </Box>
       </Stack>
 
-      {/* EQUITY CHECKBOX — shown below Run button when on financing tab */}
-      {tab === "financing" && (
-        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", mb: 1 }}>
-          <Paper
-            elevation={0}
-            sx={(theme) => ({
-              display: "inline-flex",
-              alignItems: "center",
-              px: 2,
-              py: 0.75,
-              borderRadius: "999px",
-              border: "1px solid",
-              borderColor: hasEquity
-                ? alpha(theme.palette.success.main, 0.4)
-                : alpha(theme.palette.common.white, 0.55),
-              background: hasEquity
-                ? `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.12)} 0%, ${alpha(theme.palette.success.light, 0.08)} 100%)`
-                : `linear-gradient(135deg, ${alpha(theme.palette.common.white, 0.72)} 0%, ${alpha(theme.palette.grey[100], 0.5)} 100%)`,
-              backdropFilter: "blur(14px)",
-              boxShadow: `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.6)}, 0 6px 16px ${alpha(theme.palette.common.black, 0.07)}`,
-            })}
-          >
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={hasEquity}
-                  onChange={handleEquityToggle}
-                  disabled={equityActionLoading || runLoading}
-                  size="small"
-                  sx={{ color: "success.main", "&.Mui-checked": { color: "success.main" } }}
-                />
-              }
-              label={
-                <Typography sx={{ fontWeight: 800, fontStyle: "italic", fontSize: 14 }}>
-                  Equity (Self-Financing)
-                </Typography>
-              }
-              sx={{ m: 0 }}
-            />
-          </Paper>
-          <Typography
-            sx={{ fontSize: 16, color: "text.disabled", fontStyle: "italic", mt: 0.5, mr: 0.5, fontWeight: 900 }}
-          >
-            {fsItems.length === 1 ? "1 scheme selected" : `${fsItems.length} schemes selected`}
-          </Typography>
-        </Box>
-      )}
-
-      {/* TAB PILLS */}
-      <Stack
-        direction="row"
-        justifyContent="center"
-        spacing={2}
-        flexWrap="wrap"
-        sx={{ mb: 3 }}
+      {/* TABS + EQUITY ROW */}
+      <Box
+        sx={{
+          position: "relative",
+          display: "flex",
+          alignItems: "center",
+          minHeight: 48,
+          mb: 3,
+        }}
       >
-        <Box onClick={() => switchTab("buildings")} sx={glassTabPillSx(tab === "buildings")}>
-          <Typography
-            sx={{
-              fontWeight: 800,
-              fontStyle: "italic",
-              color: tab === "buildings" ? "text.primary" : "text.secondary",
-            }}
-          >
-            Add Buildings
-          </Typography>
+        {/* Truly centered: both tab pills */}
+        <Box
+          sx={{
+            position: "absolute",
+            left: "50%",
+            transform: "translateX(-50%)",
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+          }}
+        >
+          <Box onClick={() => switchTab("buildings")} sx={glassTabPillSx(tab === "buildings")}>
+            <Typography
+              sx={{
+                fontWeight: 800,
+                fontStyle: "italic",
+                color: tab === "buildings" ? "text.primary" : "text.secondary",
+              }}
+            >
+              Add Buildings
+            </Typography>
+          </Box>
+          <Box onClick={() => switchTab("financing")} sx={glassTabPillSx(tab === "financing")}>
+            <Typography
+              sx={{
+                fontWeight: 800,
+                fontStyle: "italic",
+                color: tab === "financing" ? "text.primary" : "text.secondary",
+              }}
+            >
+              Add Financing Schemes
+            </Typography>
+          </Box>
         </Box>
 
-        <Box onClick={() => switchTab("financing")} sx={glassTabPillSx(tab === "financing")}>
-          <Typography
-            sx={{
-              fontWeight: 800,
-              fontStyle: "italic",
-              color: tab === "financing" ? "text.primary" : "text.secondary",
-            }}
-          >
-            Add Financing Schemes
-          </Typography>
+        {/* Right-aligned: Equity + count (financing tab only) */}
+        <Box
+          sx={{
+            marginLeft: "auto",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+          }}
+        >
+          {tab === "financing" && (
+            <>
+              <Paper
+                elevation={0}
+                sx={(theme) => ({
+                  display: "inline-flex",
+                  alignItems: "center",
+                  px: 2,
+                  py: 0.75,
+                  borderRadius: "999px",
+                  border: "1px solid",
+                  borderColor: hasEquity
+                    ? alpha(theme.palette.success.main, 0.4)
+                    : alpha(theme.palette.common.white, 0.55),
+                  background: hasEquity
+                    ? `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.12)} 0%, ${alpha(theme.palette.success.light, 0.08)} 100%)`
+                    : `linear-gradient(135deg, ${alpha(theme.palette.common.white, 0.72)} 0%, ${alpha(theme.palette.grey[100], 0.5)} 100%)`,
+                  backdropFilter: "blur(14px)",
+                  boxShadow: `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.6)}, 0 6px 16px ${alpha(theme.palette.common.black, 0.07)}`,
+                })}
+              >
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={hasEquity}
+                      onChange={handleEquityToggle}
+                      disabled={equityActionLoading || runLoading}
+                      size="small"
+                      sx={{ color: "success.main", "&.Mui-checked": { color: "success.main" } }}
+                    />
+                  }
+                  label={
+                    <Typography sx={{ fontWeight: 800, fontStyle: "italic", fontSize: 14 }}>
+                      Equity (Self-Financing)
+                    </Typography>
+                  }
+                  sx={{ m: 0 }}
+                />
+              </Paper>
+              <Typography
+                sx={{ fontSize: 14, fontWeight: 900, color: "text.disabled", fontStyle: "italic", mt: 0.5 }}
+              >
+                {fsItems.length === 1 ? "1 scheme selected" : `${fsItems.length} schemes selected`}
+              </Typography>
+            </>
+          )}
         </Box>
-      </Stack>
+      </Box>
 
       {/* PAGE-LEVEL ERROR */}
       {pageError && (
@@ -334,7 +358,7 @@ const ExperimentInput = () => {
       <Box
         sx={(theme) => ({
           position: "relative",
-          p: { xs: 1.2, md: 0.5 },
+          p: "4px",
           borderRadius: 4,
           backgroundColor: theme.palette.secondary.main,
           boxShadow: `0 22px 60px rgba(0,0,0,0.14)`,
@@ -369,6 +393,7 @@ const ExperimentInput = () => {
                 onReadinessRefresh={refreshReadiness}
                 onPageError={setPageError}
                 onSchemesChange={setFsItems}
+                onSchemesReadyChange={setFinancingReady}
               />
             </Box>
           )}
