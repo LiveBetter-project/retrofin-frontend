@@ -1,17 +1,13 @@
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
   Box,
   CircularProgress,
-  Divider,
-  Grid,
   Grow,
   IconButton,
   Paper,
   Stack,
   Typography,
 } from "@mui/material";
-import { alpha } from "@mui/material/styles";
 
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
@@ -19,17 +15,16 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 
 import ExperimentsAPI from "../../api/experiments";
-import { AppButton, NumericInput, TextInput } from "../index";
+import { AppButton } from "../index";
 import {
-  cancelButtonSx,
   emptyBuilding,
   extractApiError,
   glassDeleteIconButtonSx,
   glassGreenButtonSx,
   glassPanelSx,
   glassViewIconButtonSx,
-  quietGreenPillSx,
 } from "./constants";
+import BuildingForm from "./BuildingForm";
 
 /**
  * Buildings tab — owns all buildings-related state and API calls.
@@ -38,6 +33,7 @@ import {
  *   experimentId       — current experiment ID
  *   onReadinessRefresh — call after any create/update/delete to refresh readiness
  *   onPageError        — surface fatal API errors to the page level
+ *   onBuildingsChange  — called with the current buildings array after every mutation
  */
 const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError, onBuildingsChange }) => {
   const [loading, setLoading] = useState(true);
@@ -71,7 +67,6 @@ const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError, onBuildin
       }
     })();
     return () => { mounted = false; };
-    // experimentId is stable for the lifetime of this component
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [experimentId]);
 
@@ -123,7 +118,7 @@ const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError, onBuildin
     }
   };
 
-  // ── Maintenance cost validation (≤ 10% of capex) ─────────────────────
+  // ── Validation ────────────────────────────────────────────────────────
   const maintenanceCostError = (() => {
     const capex = Number(buildingDraft.eem_capex) || 0;
     const maint = Number(buildingDraft.eem_maintenance_cost) || 0;
@@ -133,14 +128,12 @@ const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError, onBuildin
     return "";
   })();
 
-  // ── Year of construction validation (> 1900) ──────────────────────────
   const yearOfConstructionError = (() => {
     const y = buildingDraft.year_of_construction;
     if (y !== "" && y !== null && Number(y) <= 1900) return "Must be after 1900.";
     return "";
   })();
 
-  // ── Lifetime validation (≤ 100) ───────────────────────────────────────
   const lifetimeError = (() => {
     const lt = buildingDraft.eem_lifetime;
     if (lt !== "" && lt !== null && Number(lt) > 100) return "Maximum lifetime is 100 years.";
@@ -168,21 +161,15 @@ const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError, onBuildin
       country: buildingDraft.country,
       region: buildingDraft.region,
       year_of_construction:
-        buildingDraft.year_of_construction === ""
-          ? null
-          : Number(buildingDraft.year_of_construction),
+        buildingDraft.year_of_construction === "" ? null : Number(buildingDraft.year_of_construction),
       floor_area:
         buildingDraft.floor_area === "" ? null : Number(buildingDraft.floor_area),
       eem_capex:
         buildingDraft.eem_capex === "" ? null : Number(buildingDraft.eem_capex),
       eem_energy_savings:
-        buildingDraft.eem_energy_savings === ""
-          ? null
-          : Number(buildingDraft.eem_energy_savings),
+        buildingDraft.eem_energy_savings === "" ? null : Number(buildingDraft.eem_energy_savings),
       eem_maintenance_cost:
-        buildingDraft.eem_maintenance_cost === ""
-          ? null
-          : Number(buildingDraft.eem_maintenance_cost),
+        buildingDraft.eem_maintenance_cost === "" ? null : Number(buildingDraft.eem_maintenance_cost),
       eem_lifetime:
         buildingDraft.eem_lifetime === "" ? null : Number(buildingDraft.eem_lifetime),
     };
@@ -195,11 +182,7 @@ const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError, onBuildin
           return next;
         });
       } else {
-        const updated = await ExperimentsAPI.patchBuilding(
-          experimentId,
-          editingBuildingId,
-          payload,
-        );
+        const updated = await ExperimentsAPI.patchBuilding(experimentId, editingBuildingId, payload);
         setBuildings((prev) => {
           const next = prev.map((x) => (x.id === editingBuildingId ? updated : x));
           if (onBuildingsChange) onBuildingsChange(next);
@@ -249,10 +232,7 @@ const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError, onBuildin
                 <Stack direction="row" alignItems="center" spacing={1.5}>
                   <HomeOutlinedIcon sx={{ color: "text.primary" }} />
 
-                  <Typography
-                    sx={{ flex: 1, fontWeight: 800, fontStyle: "italic" }}
-                    noWrap
-                  >
+                  <Typography sx={{ flex: 1, fontWeight: 800, fontStyle: "italic" }} noWrap>
                     <Box component="span" sx={{ color: "success.main" }}>
                       Building {idx + 1}:
                     </Box>{" "}
@@ -302,285 +282,23 @@ const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError, onBuildin
     );
   }
 
-  // ── Building form ──────────────────────────────────────────────────────
+  // ── Building form screen ───────────────────────────────────────────────
   return (
-    <Box>
-      {buildingFormError && (
-        <Alert severity="error" sx={{ borderRadius: 2, mb: 2 }}>
-          {buildingFormError}
-        </Alert>
-      )}
-
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        sx={{ mb: 2 }}
-      >
-        <Box sx={quietGreenPillSx}>
-          <Typography sx={{ color: "primary.main", fontWeight: 900, fontStyle: "italic" }}>
-            {editingBuildingId
-              ? `Building ${buildings.findIndex((b) => b.id === editingBuildingId) + 1}`
-              : "New Building"}
-          </Typography>
-        </Box>
-        {editingBuildingId && (
-          <IconButton
-            aria-label="Delete building"
-            onClick={() => deleteBuilding(editingBuildingId)}
-            disabled={buildingBusyId === editingBuildingId}
-            sx={glassDeleteIconButtonSx}
-          >
-            {buildingBusyId === editingBuildingId ? (
-              <CircularProgress size={20} />
-            ) : (
-              <DeleteOutlineIcon />
-            )}
-          </IconButton>
-        )}
-      </Stack>
-
-      <Typography
-        sx={{
-          textAlign: "center",
-          fontWeight: 900,
-          fontStyle: "italic",
-          color: "success.main",
-          fontSize: 20,
-          mb: 1,
-        }}
-      >
-        General Details
-      </Typography>
-
-      <Box sx={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}>
-        {/* General details */}
-        <Grid
-          container
-          columnSpacing={6}
-          rowSpacing={2}
-          sx={{ width: "100%", maxWidth: 980, justifyContent: "center", mb: 3 }}
-        >
-          <Grid
-            item
-            xs={12}
-            md={6}
-            sx={{ display: "flex", justifyContent: { xs: "center", md: "flex-end" } }}
-          >
-            <Stack spacing={2} sx={{ width: 420 }}>
-              {[
-                { label: "Name", field: "name" },
-                { label: "Country", field: "country" },
-                { label: "Region", field: "region" },
-              ].map(({ label, field }) => (
-                <Stack direction="row" alignItems="center" spacing={2} key={field}>
-                  <Typography
-                    sx={{
-                      width: 150,
-                      textAlign: "right",
-                      fontWeight: 900,
-                      fontStyle: "italic",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {label}
-                  </Typography>
-                  <Box sx={{ width: 240, flexShrink: 0 }}>
-                    <TextInput
-                      value={buildingDraft[field]}
-                      onChange={(e) =>
-                        setBuildingDraft((p) => ({ ...p, [field]: e.target.value }))
-                      }
-                    />
-                  </Box>
-                </Stack>
-              ))}
-            </Stack>
-          </Grid>
-
-          <Grid
-            item
-            xs={12}
-            md={6}
-            sx={{ display: "flex", justifyContent: { xs: "center", md: "flex-start" } }}
-          >
-            <Box
-              sx={{
-                width: 420,
-                display: "flex",
-                alignItems: "center",
-                minHeight: { xs: "auto", md: 172 },
-              }}
-            >
-              <Stack spacing={2} sx={{ width: "100%" }}>
-                {[
-                  { label: "Year of Construction", field: "year_of_construction", integer: true, min: 1901, step: 1, errorFn: () => yearOfConstructionError },
-                  { label: "Floor Area (m²)", field: "floor_area", min: 0, step: 50 },
-                ].map(({ label, field, integer, min, step, errorFn }) => (
-                  <Stack direction="row" alignItems="flex-start" spacing={2} key={field}>
-                    <Typography
-                      sx={{
-                        width: 150,
-                        textAlign: "right",
-                        fontWeight: 900,
-                        fontStyle: "italic",
-                        flexShrink: 0,
-                        pt: errorFn?.() ? 0.5 : 0,
-                      }}
-                    >
-                      {label}
-                    </Typography>
-                    <Box sx={{ width: 240, flexShrink: 0 }}>
-                      <NumericInput
-                        value={buildingDraft[field]}
-                        integer={integer}
-                        min={min}
-                        step={step}
-                        error={errorFn?.()}
-                        onChange={(e) =>
-                          setBuildingDraft((p) => ({ ...p, [field]: e.target.value }))
-                        }
-                      />
-                    </Box>
-                  </Stack>
-                ))}
-              </Stack>
-            </Box>
-          </Grid>
-        </Grid>
-
-        {/* EEM section */}
-        <Divider
-          sx={(theme) => ({
-            my: 2.5,
-            width: "100%",
-            maxWidth: 980,
-            borderColor: alpha(theme.palette.common.white, 0.55),
-          })}
-        />
-
-        <Typography
-          sx={{
-            textAlign: "center",
-            fontWeight: 900,
-            fontStyle: "italic",
-            color: "success.main",
-            fontSize: 20,
-            mb: 2,
-          }}
-        >
-          Energy Efficiency Measures
-        </Typography>
-
-        <Grid
-          container
-          columnSpacing={6}
-          rowSpacing={2}
-          sx={{ width: "100%", maxWidth: 980, justifyContent: "center" }}
-        >
-          <Grid
-            item
-            xs={12}
-            md={6}
-            sx={{ display: "flex", justifyContent: { xs: "center", md: "flex-end" } }}
-          >
-            <Stack spacing={2} sx={{ width: 420 }}>
-              {[
-                { label: "Total CAPEX (€)", field: "eem_capex", min: 0, step: 1000 },
-                { label: "Annual Energy Savings (kWh)", field: "eem_energy_savings", min: 0, step: 100 },
-              ].map(({ label, field, min, step }) => (
-                <Stack direction="row" alignItems="center" spacing={2} key={field}>
-                  <Typography
-                    sx={{
-                      width: 170,
-                      textAlign: "right",
-                      fontWeight: 900,
-                      fontStyle: "italic",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {label}
-                  </Typography>
-                  <Box sx={{ width: 220, flexShrink: 0 }}>
-                    <NumericInput
-                      value={buildingDraft[field]}
-                      min={min}
-                      step={step}
-                      onChange={(e) =>
-                        setBuildingDraft((p) => ({ ...p, [field]: e.target.value }))
-                      }
-                    />
-                  </Box>
-                </Stack>
-              ))}
-            </Stack>
-          </Grid>
-
-          <Grid
-            item
-            xs={12}
-            md={6}
-            sx={{ display: "flex", justifyContent: { xs: "center", md: "flex-start" } }}
-          >
-            <Stack spacing={2} sx={{ width: 420 }}>
-              {[
-                { label: "Annual Maintenance Cost (€)", field: "eem_maintenance_cost", min: 0, step: 1000, errorFn: () => maintenanceCostError },
-                { label: "Lifetime (years)", field: "eem_lifetime", integer: true, min: 1, step: 1, errorFn: () => lifetimeError },
-              ].map(({ label, field, integer, min, step, errorFn }) => (
-                <Stack direction="row" alignItems="flex-start" spacing={2} key={field}>
-                  <Typography
-                    sx={{
-                      width: 170,
-                      textAlign: "right",
-                      fontWeight: 900,
-                      fontStyle: "italic",
-                      flexShrink: 0,
-                      pt: errorFn?.() ? 0.5 : 0,
-                    }}
-                  >
-                    {label}
-                  </Typography>
-                  <Box sx={{ width: 220, flexShrink: 0 }}>
-                    <NumericInput
-                      value={buildingDraft[field]}
-                      integer={integer}
-                      min={min}
-                      step={step}
-                      error={errorFn?.()}
-                      onChange={(e) =>
-                        setBuildingDraft((p) => ({ ...p, [field]: e.target.value }))
-                      }
-                    />
-                  </Box>
-                </Stack>
-              ))}
-            </Stack>
-          </Grid>
-        </Grid>
-      </Box>
-
-      <Stack direction="row" justifyContent="center" spacing={2} sx={{ mt: 3 }}>
-        <AppButton
-          fullWidth={false}
-          variant="outlined"
-          onClick={() => {
-            setScreen("list");
-            setEditingBuildingId(null);
-          }}
-          sx={cancelButtonSx}
-        >
-          Cancel
-        </AppButton>
-        <AppButton
-          fullWidth={false}
-          onClick={saveBuilding}
-          loading={buildingSaveLoading}
-          sx={glassGreenButtonSx}
-        >
-          Save
-        </AppButton>
-      </Stack>
-    </Box>
+    <BuildingForm
+      editingBuildingId={editingBuildingId}
+      buildings={buildings}
+      buildingDraft={buildingDraft}
+      setBuildingDraft={setBuildingDraft}
+      buildingFormError={buildingFormError}
+      buildingSaveLoading={buildingSaveLoading}
+      buildingBusyId={buildingBusyId}
+      yearOfConstructionError={yearOfConstructionError}
+      lifetimeError={lifetimeError}
+      maintenanceCostError={maintenanceCostError}
+      onDelete={deleteBuilding}
+      onSave={saveBuilding}
+      onCancel={() => { setScreen("list"); setEditingBuildingId(null); }}
+    />
   );
 };
 

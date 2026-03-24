@@ -5,15 +5,10 @@ import {
   Button,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Grow,
   IconButton,
   Paper,
   Stack,
-  TextField,
   Typography,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
@@ -22,12 +17,16 @@ import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import BarChartOutlinedIcon from "@mui/icons-material/BarChartOutlined";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import DriveFileRenameOutlineIcon from "@mui/icons-material/DriveFileRenameOutline";
 
 import ExperimentsAPI from "../api/experiments";
-import TextInput from "../components/TextInput";
 import { extractApiError, pageHeaderPillSx } from "../components/experiment-input/constants";
+import CreateExperimentDialog from "../components/dashboard/CreateExperimentDialog";
+import RenameExperimentDialog from "../components/dashboard/RenameExperimentDialog";
+
+// ---------------------------------------------------------------------------
+// Local helpers
+// ---------------------------------------------------------------------------
 
 const formatDDMMYY = (iso) => {
   if (!iso) return "—";
@@ -39,7 +38,6 @@ const formatDDMMYY = (iso) => {
   return `${dd}/${mm}/${yy}`;
 };
 
-/** Generates a default experiment name like the backend would. */
 const defaultExpName = () => {
   const ts = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
   return `Experiment_${ts}`;
@@ -47,36 +45,39 @@ const defaultExpName = () => {
 
 const statusChipSx = (status) => {
   const base = { fontWeight: 700, textTransform: "capitalize" };
-  if (status === "completed")
-    return { ...base, bgcolor: "success.main", color: "common.white" };
-  if (status === "running")
-    return { ...base, bgcolor: "warning.main", color: "common.white" };
-  if (status === "failed")
-    return { ...base, bgcolor: "error.main", color: "common.white" };
-  if (status === "ready")
-    return { ...base, bgcolor: "primary.main", color: "common.white" };
+  if (status === "completed") return { ...base, bgcolor: "success.main", color: "common.white" };
+  if (status === "running")   return { ...base, bgcolor: "warning.main", color: "common.white" };
+  if (status === "failed")    return { ...base, bgcolor: "error.main",   color: "common.white" };
+  if (status === "ready")     return { ...base, bgcolor: "primary.main", color: "common.white" };
   return { ...base, bgcolor: "grey.400", color: "common.white" }; // draft or unknown
 };
+
+// ---------------------------------------------------------------------------
+// Dashboard
+// ---------------------------------------------------------------------------
 
 const Dashboard = () => {
   const navigate = useNavigate();
 
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [busyId, setBusyId] = useState(null);
+  const [items,    setItems]    = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [busyId,   setBusyId]   = useState(null);
   const [creating, setCreating] = useState(false);
-  const [error, setError] = useState("");
+  const [error,    setError]    = useState("");
 
-  // --- Dialog state ---
+  // Create dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogName, setDialogName] = useState("");
-  const [animateRows, setAnimateRows] = useState(false);
 
+  // Rename dialog state
   const [renameId,      setRenameId]      = useState(null);
   const [renameName,    setRenameName]    = useState("");
   const [renameLoading, setRenameLoading] = useState(false);
   const [renameError,   setRenameError]   = useState("");
 
+  const [animateRows, setAnimateRows] = useState(false);
+
+  // ── Data load ────────────────────────────────────────────────────────────
   const load = async () => {
     setLoading(true);
     setError("");
@@ -91,11 +92,9 @@ const Dashboard = () => {
     }
   };
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
 
-  // Opens the dialog with a fresh default name
+  // ── Create handlers ───────────────────────────────────────────────────────
   const onOpenDialog = () => {
     setDialogName(defaultExpName());
     setError("");
@@ -103,11 +102,10 @@ const Dashboard = () => {
   };
 
   const onCloseDialog = () => {
-    if (creating) return; // don't close while submitting
+    if (creating) return;
     setDialogOpen(false);
   };
 
-  // Called when the user clicks "Next >" inside the dialog
   const onCreateConfirm = async () => {
     const name = dialogName.trim();
     setCreating(true);
@@ -128,6 +126,7 @@ const Dashboard = () => {
     }
   };
 
+  // ── Delete handler ────────────────────────────────────────────────────────
   const onDelete = async (experimentId) => {
     setBusyId(experimentId);
     setError("");
@@ -141,11 +140,13 @@ const Dashboard = () => {
     }
   };
 
+  // ── Rename handlers ───────────────────────────────────────────────────────
   const openRename = (row) => {
     setRenameId(row.id);
     setRenameName(row.name);
     setRenameError("");
   };
+
   const closeRename = () => {
     if (renameLoading) return;
     setRenameId(null);
@@ -156,14 +157,15 @@ const Dashboard = () => {
   const onRenameConfirm = async () => {
     const name = renameName.trim();
     if (!name) { setRenameError("Name cannot be blank."); return; }
-    // Frontend pre-check
     const conflict = items.find((x) => x.id !== renameId && x.name === name);
     if (conflict) { setRenameError("An experiment with this name already exists."); return; }
     setRenameLoading(true);
     setRenameError("");
     try {
       const updated = await ExperimentsAPI.patch(renameId, { name });
-      setItems((prev) => prev.map((x) => x.id === renameId ? { ...x, name: updated.name ?? name } : x));
+      setItems((prev) =>
+        prev.map((x) => x.id === renameId ? { ...x, name: updated.name ?? name } : x),
+      );
       closeRename();
     } catch (err) {
       const { msg } = extractApiError(err, "Failed to rename experiment.");
@@ -173,204 +175,51 @@ const Dashboard = () => {
     }
   };
 
-  const rows = useMemo(() => {
-    return items.map((x) => {
-      const runDate =
-        x?.latest_run?.finished_at ||
-        x?.latest_run?.created_at ||
-        x?.updated_at ||
-        x?.created_at;
-      return {
-        id: x?.id,
-        name: x?.name || "Untitled Experiment",
-        date: formatDDMMYY(runDate),
-        status: x?.status || "draft",
-      };
-    });
-  }, [items]);
+  // ── Derived rows ──────────────────────────────────────────────────────────
+  const rows = useMemo(() => items.map((x) => {
+    const runDate =
+      x?.latest_run?.finished_at ||
+      x?.latest_run?.created_at  ||
+      x?.updated_at              ||
+      x?.created_at;
+    return {
+      id:     x?.id,
+      name:   x?.name || "Untitled Experiment",
+      date:   formatDDMMYY(runDate),
+      status: x?.status || "draft",
+    };
+  }), [items]);
 
   useEffect(() => {
-    if (loading) {
-      setAnimateRows(false);
-      return;
-    }
-
-    const frame = requestAnimationFrame(() => {
-      setAnimateRows(true);
-    });
-
+    if (loading) { setAnimateRows(false); return; }
+    const frame = requestAnimationFrame(() => setAnimateRows(true));
     return () => cancelAnimationFrame(frame);
   }, [loading, rows.length]);
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
-      {/* ── Naming dialog ── */}
-      <Dialog
+      <CreateExperimentDialog
         open={dialogOpen}
         onClose={onCloseDialog}
-        maxWidth="xs"
-        fullWidth
-        PaperProps={{
-          sx: (theme) => ({
-            borderRadius: 4,
-            p: 1,
-            border: "1px solid",
-            borderColor: alpha(theme.palette.common.white, 0.55),
-            background: `linear-gradient(135deg, ${alpha(theme.palette.common.white, 0.82)} 0%, ${alpha(
-              theme.palette.grey[100],
-              0.64,
-            )} 100%)`,
-            backdropFilter: "blur(20px)",
-            boxShadow: `0 24px 60px ${alpha(theme.palette.common.black, 0.18)}`,
-          }),
-        }}
-      >
-        <DialogTitle sx={{ fontWeight: 800, fontStyle: "italic", pb: 1 }}>
-          Name your experiment
-        </DialogTitle>
+        name={dialogName}
+        onNameChange={(e) => setDialogName(e.target.value)}
+        creating={creating}
+        error={dialogOpen ? error : ""}
+        onConfirm={onCreateConfirm}
+      />
 
-        <DialogContent sx={{ pt: "20px !important" }}>
-          <TextInput
-            name="experimentName"
-            label="Experiment Name"
-            value={dialogName}
-            onChange={(e) => setDialogName(e.target.value)}
-            autoComplete="off"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !creating) onCreateConfirm();
-            }}
-          />
-          {error && (
-            <Typography
-              sx={{ color: "error.main", mt: 1, fontWeight: 700, fontSize: 13 }}
-            >
-              {error}
-            </Typography>
-          )}
-        </DialogContent>
-
-        <DialogActions sx={{ px: 3, pb: 2, justifyContent: "flex-end" }}>
-          <Button
-            onClick={onCloseDialog}
-            disabled={creating}
-            sx={{ color: "text.secondary", fontWeight: 700 }}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={onCreateConfirm}
-            disabled={creating || !dialogName.trim()}
-            variant="contained"
-            endIcon={
-              creating ? (
-                <CircularProgress size={16} color="inherit" />
-              ) : (
-                <ArrowForwardIcon />
-              )
-            }
-            sx={(theme) => ({
-              color: theme.palette.common.white,
-              background: `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.dark} 100%)`,
-              border: "1px solid",
-              borderColor: alpha(theme.palette.common.white, 0.24),
-              borderRadius: "999px",
-              px: 3.2,
-              py: 1.1,
-              fontWeight: 800,
-              backdropFilter: "blur(14px)",
-              boxShadow: `0 14px 32px ${alpha(theme.palette.success.main, 0.3)}`,
-              transition:
-                "transform 180ms ease, box-shadow 180ms ease, filter 180ms ease",
-              "&:hover": {
-                background: `linear-gradient(135deg, ${theme.palette.success.dark} 0%, ${theme.palette.success.main} 100%)`,
-                transform: "translateY(-2px)",
-                boxShadow: `0 18px 36px ${alpha(theme.palette.success.main, 0.36)}`,
-                filter: "brightness(1.03)",
-              },
-              "&.Mui-disabled": {
-                color: alpha(theme.palette.common.white, 0.8),
-                background: alpha(theme.palette.success.main, 0.45),
-              },
-            })}
-          >
-            Next
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* ── Rename dialog ── */}
-      <Dialog
+      <RenameExperimentDialog
         open={Boolean(renameId)}
         onClose={closeRename}
-        maxWidth="xs"
-        fullWidth
-        PaperProps={{
-          sx: (theme) => ({
-            borderRadius: 4,
-            p: 1,
-            border: "1px solid",
-            borderColor: alpha(theme.palette.common.white, 0.55),
-            background: `linear-gradient(135deg, ${alpha(theme.palette.common.white, 0.82)} 0%, ${alpha(theme.palette.grey[100], 0.64)} 100%)`,
-            backdropFilter: "blur(20px)",
-            boxShadow: `0 24px 60px ${alpha(theme.palette.common.black, 0.18)}`,
-          }),
-        }}
-      >
-        <DialogTitle sx={{ fontWeight: 800, fontStyle: "italic", pb: 1 }}>
-          Rename experiment
-        </DialogTitle>
-        <DialogContent sx={{ pt: "20px !important" }}>
-          <TextInput
-            name="renameName"
-            label="Experiment Name"
-            value={renameName}
-            onChange={(e) => { setRenameName(e.target.value); setRenameError(""); }}
-            autoComplete="off"
-            onKeyDown={(e) => { if (e.key === "Enter" && !renameLoading) onRenameConfirm(); }}
-          />
-          {renameError && (
-            <Typography sx={{ color: "error.main", mt: 1, fontWeight: 700, fontSize: 13 }}>
-              {renameError}
-            </Typography>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2, justifyContent: "flex-end" }}>
-          <Button onClick={closeRename} disabled={renameLoading} sx={{ color: "text.secondary", fontWeight: 700 }}>
-            Cancel
-          </Button>
-          <Button
-            onClick={onRenameConfirm}
-            disabled={renameLoading || !renameName.trim()}
-            variant="contained"
-            endIcon={renameLoading ? <CircularProgress size={16} color="inherit" /> : <DriveFileRenameOutlineIcon />}
-            sx={(theme) => ({
-              color: theme.palette.common.white,
-              background: `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.dark} 100%)`,
-              border: "1px solid",
-              borderColor: alpha(theme.palette.common.white, 0.24),
-              borderRadius: "999px",
-              px: 3.2,
-              py: 1.1,
-              fontWeight: 800,
-              backdropFilter: "blur(14px)",
-              boxShadow: `0 14px 32px ${alpha(theme.palette.success.main, 0.3)}`,
-              "&:hover": {
-                background: `linear-gradient(135deg, ${theme.palette.success.dark} 0%, ${theme.palette.success.main} 100%)`,
-                transform: "translateY(-2px)",
-                boxShadow: `0 18px 36px ${alpha(theme.palette.success.main, 0.36)}`,
-              },
-              "&.Mui-disabled": {
-                color: alpha(theme.palette.common.white, 0.8),
-                background: alpha(theme.palette.success.main, 0.45),
-              },
-            })}
-          >
-            Save
-          </Button>
-        </DialogActions>
-      </Dialog>
+        name={renameName}
+        onNameChange={(e) => { setRenameName(e.target.value); setRenameError(""); }}
+        loading={renameLoading}
+        error={renameError}
+        onConfirm={onRenameConfirm}
+      />
 
-      {/* ── Dashboard header — outside the frame ── */}
+      {/* ── Dashboard header ── */}
       <Stack
         direction="row"
         alignItems="center"
@@ -411,8 +260,7 @@ const Dashboard = () => {
               fontWeight: 800,
               backdropFilter: "blur(14px)",
               boxShadow: `0 14px 32px ${alpha(theme.palette.success.main, 0.3)}`,
-              transition:
-                "transform 180ms ease, box-shadow 180ms ease, filter 180ms ease",
+              transition: "transform 180ms ease, box-shadow 180ms ease, filter 180ms ease",
               "&:hover": {
                 background: `linear-gradient(135deg, ${theme.palette.success.dark} 0%, ${theme.palette.success.main} 100%)`,
                 transform: "translateY(-2px)",
@@ -451,35 +299,16 @@ const Dashboard = () => {
           })}
         >
           <Stack direction="row" sx={{ mb: 1.25, px: 1 }}>
-            <Typography
-              sx={{
-                flex: 1,
-                fontWeight: 800,
-                fontStyle: "italic",
-                color: "text.secondary",
-              }}
-            >
+            <Typography sx={{ flex: 1, fontWeight: 800, fontStyle: "italic", color: "text.secondary" }}>
               Experiment Title
             </Typography>
             <Typography
-              sx={{
-                width: 140,
-                fontWeight: 800,
-                fontStyle: "italic",
-                color: "text.secondary",
-                textAlign: "center",
-              }}
+              sx={{ width: 140, fontWeight: 800, fontStyle: "italic", color: "text.secondary", textAlign: "center" }}
             >
               Date
             </Typography>
             <Typography
-              sx={{
-                width: 120,
-                fontWeight: 800,
-                fontStyle: "italic",
-                color: "text.secondary",
-                textAlign: "center",
-              }}
+              sx={{ width: 120, fontWeight: 800, fontStyle: "italic", color: "text.secondary", textAlign: "center" }}
             >
               Status
             </Typography>
@@ -488,9 +317,7 @@ const Dashboard = () => {
 
           {error && !dialogOpen && (
             <Paper sx={{ p: 2, mb: 2, borderRadius: 2 }}>
-              <Typography sx={{ color: "error.main", fontWeight: 700 }}>
-                {error}
-              </Typography>
+              <Typography sx={{ color: "error.main", fontWeight: 700 }}>{error}</Typography>
             </Paper>
           )}
 
@@ -500,12 +327,8 @@ const Dashboard = () => {
             </Box>
           ) : rows.length === 0 ? (
             <Paper sx={{ p: 3, borderRadius: 2 }}>
-              <Typography sx={{ fontWeight: 800 }}>
-                No experiments yet.
-              </Typography>
-              <Typography sx={{ color: "text.secondary" }}>
-                Create one with "New".
-              </Typography>
+              <Typography sx={{ fontWeight: 800 }}>No experiments yet.</Typography>
+              <Typography sx={{ color: "text.secondary" }}>Create one with "New".</Typography>
             </Paper>
           ) : (
             <Stack spacing={2}>
@@ -533,8 +356,7 @@ const Dashboard = () => {
                         theme.palette.common.black,
                         0.08,
                       )}`,
-                      transition:
-                        "transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease",
+                      transition: "transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease",
                       "&:hover": {
                         transform: "translateY(-4px) scale(1.01)",
                         borderColor: alpha(theme.palette.success.main, 0.35),
@@ -548,9 +370,7 @@ const Dashboard = () => {
                     <Stack direction="row" alignItems="center" spacing={1.5}>
                       <BarChartOutlinedIcon sx={{ color: "text.primary" }} />
 
-                      <Typography
-                        sx={{ flex: 1, fontWeight: 800, fontStyle: "italic" }}
-                      >
+                      <Typography sx={{ flex: 1, fontWeight: 800, fontStyle: "italic" }}>
                         {r.name}
                       </Typography>
 
@@ -559,11 +379,7 @@ const Dashboard = () => {
                       </Typography>
 
                       <Box sx={{ width: 120, display: "flex", justifyContent: "center" }}>
-                        <Chip
-                          label={r.status}
-                          size="small"
-                          sx={statusChipSx(r.status)}
-                        />
+                        <Chip label={r.status} size="small" sx={statusChipSx(r.status)} />
                       </Box>
 
                       <Stack direction="row" spacing={0.75} sx={{ width: 144, justifyContent: "flex-end" }}>
