@@ -49,7 +49,7 @@ import SchemeFields from "./SchemeFields";
  *   removeEquity() — remove the equity scheme if present
  */
 const FinancingTab = React.forwardRef(function FinancingTab(
-  { experimentId, buildings = [], onReadinessRefresh, onPageError, onSchemesChange, onSchemesReadyChange },
+  { experimentId, buildings = [], onReadinessRefresh, onPageError, onSchemesChange, onSchemesReadyChange, onCatalogCountChange },
   ref,
 ) {
   const [loading, setLoading] = useState(true);
@@ -83,6 +83,8 @@ const FinancingTab = React.forwardRef(function FinancingTab(
   const fsItemsRef = useRef(fsItems);
   const removeSchemeRef = useRef(null);
   const removeAllAndAddEquityRef = useRef(null);
+  const selectAllRef = useRef(null);
+  const deselectAllRef = useRef(null);
   useEffect(() => { fsItemsRef.current = fsItems; }, [fsItems]);
 
   // ── Validation values from buildings ──────────────────────────────────
@@ -107,7 +109,13 @@ const FinancingTab = React.forwardRef(function FinancingTab(
           ExperimentsAPI.listExperimentFinancingSchemes(experimentId),
         ]);
         if (!mounted) return;
-        setCatalog(Array.isArray(cat) ? cat : []);
+        const catList = Array.isArray(cat) ? cat : [];
+        setCatalog(catList);
+        if (onCatalogCountChange) {
+          onCatalogCountChange(
+            catList.filter((x) => (x.key ?? x.scheme_key) !== "equity").length,
+          );
+        }
         const items = Array.isArray(selected) ? selected : [];
         setFsItems(items);
         if (onSchemesChange) onSchemesChange(items);
@@ -344,6 +352,87 @@ const FinancingTab = React.forwardRef(function FinancingTab(
     }
   };
 
+  // ── Select all non-equity schemes ────────────────────────────────────
+  const selectAllSchemes = async () => {
+    const nonEquityCatalog = catalogOptions.filter((o) => o.key !== "equity");
+    setAddSchemeLoading(true);
+    setAddSchemeError("");
+    try {
+      const current = fsItemsRef.current;
+      const equityItem = current.find((x) => x.scheme_key === "equity");
+      if (equityItem) {
+        await ExperimentsAPI.removeExperimentFinancingScheme(experimentId, equityItem.id);
+      }
+      const alreadyKeys = new Set(
+        current.filter((x) => x.scheme_key !== "equity").map((x) => x.scheme_key),
+      );
+      const toAdd = nonEquityCatalog.filter((o) => !alreadyKeys.has(o.key));
+      const created = await Promise.all(
+        toAdd.map((o) =>
+          ExperimentsAPI.addExperimentFinancingScheme(experimentId, {
+            scheme_type: o.key,
+            params: {},
+          }),
+        ),
+      );
+      await Promise.all(toAdd.map((o) => ensureDef(o.key)));
+      const existing = current.filter((x) => x.scheme_key !== "equity");
+      const nextItems = [...existing, ...created.filter(Boolean)];
+      const draftPatch = {};
+      const initialPatch = {};
+      const savedPatch = {};
+      created.forEach((c, i) => {
+        if (!c) return;
+        const defaults = SCHEME_DEFAULTS[toAdd[i].key] || {};
+        draftPatch[c.id] = { ...defaults };
+        initialPatch[c.id] = { ...defaults };
+        savedPatch[c.id] = c.params ?? {};
+      });
+      if (equityItem) {
+        setFsDraftById((prev) => { const n = { ...(prev || {}) }; delete n[equityItem.id]; return { ...n, ...draftPatch }; });
+        setSavedParamsById((prev) => { const n = { ...(prev || {}) }; delete n[equityItem.id]; return { ...n, ...savedPatch }; });
+        setFsInitialDraftById((prev) => { const n = { ...(prev || {}) }; delete n[equityItem.id]; return { ...n, ...initialPatch }; });
+      } else {
+        setFsDraftById((prev) => ({ ...(prev || {}), ...draftPatch }));
+        setSavedParamsById((prev) => ({ ...(prev || {}), ...savedPatch }));
+        setFsInitialDraftById((prev) => ({ ...(prev || {}), ...initialPatch }));
+      }
+      setFsItems(nextItems);
+      if (onSchemesChange) onSchemesChange(nextItems);
+      await onReadinessRefresh();
+    } catch (err) {
+      const { msg } = extractApiError(err, "Failed to add all schemes.");
+      setAddSchemeError(msg);
+    } finally {
+      setAddSchemeLoading(false);
+    }
+  };
+
+  // ── Deselect (remove) all schemes ────────────────────────────────────
+  const deselectAllSchemes = async () => {
+    setAddSchemeLoading(true);
+    setAddSchemeError("");
+    try {
+      const current = fsItemsRef.current;
+      await Promise.all(
+        current.map((fs) =>
+          ExperimentsAPI.removeExperimentFinancingScheme(experimentId, fs.id),
+        ),
+      );
+      setFsItems([]);
+      setFsDraftById({});
+      setSavedParamsById({});
+      setFsInitialDraftById({});
+      if (onSchemesChange) onSchemesChange([]);
+      await onReadinessRefresh();
+    } catch (err) {
+      const { msg } = extractApiError(err, "Failed to remove all schemes.");
+      onPageError(msg);
+    } finally {
+      setAddSchemeLoading(false);
+    }
+  };
+
   // ── Save scheme params ────────────────────────────────────────────────
   const patchSchemeParams = async (fsId, schemeKey) => {
     if (hasFieldErrors(fsId, schemeKey)) return;
@@ -395,6 +484,8 @@ const FinancingTab = React.forwardRef(function FinancingTab(
   // Keep live refs for imperative handle
   removeSchemeRef.current = removeScheme;
   removeAllAndAddEquityRef.current = removeAllAndAddEquity;
+  selectAllRef.current = selectAllSchemes;
+  deselectAllRef.current = deselectAllSchemes;
 
   // ── Imperative handle (for ExperimentInput equity checkbox) ───────────
   useImperativeHandle(ref, () => ({
@@ -403,6 +494,8 @@ const FinancingTab = React.forwardRef(function FinancingTab(
       const equityItem = fsItemsRef.current.find((x) => x.scheme_key === "equity");
       if (equityItem) return removeSchemeRef.current(equityItem.id);
     },
+    selectAll: () => selectAllRef.current?.(),
+    deselectAll: () => deselectAllRef.current?.(),
   }), []);
 
   // ── Render ────────────────────────────────────────────────────────────

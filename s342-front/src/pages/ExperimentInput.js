@@ -59,6 +59,8 @@ const ExperimentInput = () => {
   const [fsItems, setFsItems] = useState([]);
 
   const [financingReady, setFinancingReady] = useState(false);
+  const [nonEquityCatalogCount, setNonEquityCatalogCount] = useState(0);
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
   const [runLoading, setRunLoading] = useState(false);
 
@@ -103,6 +105,21 @@ const ExperimentInput = () => {
   // ── Local readiness: >= 1 building AND >= 1 selected scheme ──────────
   const isReady = buildings.length >= 1 && financingReady;
   const hasEquity = fsItems.some((x) => x.scheme_key === "equity");
+  const nonEquityCount = fsItems.filter((x) => x.scheme_key !== "equity").length;
+
+  const handleBulkToggle = async () => {
+    const allSelected = nonEquityCatalogCount > 0 && nonEquityCount >= nonEquityCatalogCount;
+    setBulkActionLoading(true);
+    try {
+      if (allSelected) {
+        await financingTabRef.current?.deselectAll();
+      } else {
+        await financingTabRef.current?.selectAll();
+      }
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
 
   // ── Tab switch ────────────────────────────────────────────────────────
   const switchTab = (newTab) => {
@@ -241,6 +258,34 @@ const ExperimentInput = () => {
           mb: 3,
         }}
       >
+        {/* Left: bulk select for financing schemes */}
+        {tab === "financing" && (
+          <FormControlLabel
+            control={
+              <Checkbox
+                indeterminate={nonEquityCount > 0 && nonEquityCount < nonEquityCatalogCount}
+                checked={nonEquityCatalogCount > 0 && nonEquityCount >= nonEquityCatalogCount}
+                onChange={handleBulkToggle}
+                disabled={bulkActionLoading || equityActionLoading || runLoading}
+                size="small"
+                sx={{
+                  color: "success.main",
+                  "&.Mui-checked": { color: "success.main" },
+                  "&.MuiCheckbox-indeterminate": { color: "success.main" },
+                }}
+              />
+            }
+            label={
+              <Typography sx={{ fontSize: 12, fontWeight: 700, fontStyle: "italic" }}>
+                {nonEquityCatalogCount > 0 && nonEquityCount >= nonEquityCatalogCount
+                  ? "Deselect all"
+                  : "Select all"}
+              </Typography>
+            }
+            sx={{ m: 0 }}
+          />
+        )}
+
         {/* Truly centered: both tab pills */}
         <Box
           sx={{
@@ -325,7 +370,7 @@ const ExperimentInput = () => {
                 />
               </Paper>
               <Typography
-                sx={{ fontSize: 14, fontWeight: 900, color: "text.disabled", fontStyle: "italic", mt: 0.5 }}
+                sx={{ fontSize: 14, fontWeight: 900, color: "success.main", fontStyle: "italic", mt: 0.5 }}
               >
                 {fsItems.length === 1 ? "1 scheme selected" : `${fsItems.length} schemes selected`}
               </Typography>
@@ -394,6 +439,7 @@ const ExperimentInput = () => {
                 onPageError={setPageError}
                 onSchemesChange={setFsItems}
                 onSchemesReadyChange={setFinancingReady}
+                onCatalogCountChange={setNonEquityCatalogCount}
               />
             </Box>
           )}

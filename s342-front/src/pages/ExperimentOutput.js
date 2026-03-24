@@ -5,6 +5,7 @@ import {
   Box,
   Checkbox,
   CircularProgress,
+  Divider,
   Grid,
   IconButton,
   Menu,
@@ -273,6 +274,14 @@ const KpiMatrix = ({ schemes, colorMap }) => {
       return next;
     });
 
+  const handleBulkFilter = () => {
+    if (selectedTypes.size === schemes.length) {
+      setSelectedTypes(new Set());
+    } else {
+      setSelectedTypes(new Set(schemes.map((s) => s.schemeType)));
+    }
+  };
+
   return (
     <Box>
       {/* Filter button */}
@@ -290,6 +299,20 @@ const KpiMatrix = ({ schemes, colorMap }) => {
           open={Boolean(filterAnchor)}
           onClose={() => setFilterAnchor(null)}
         >
+          <MenuItem dense onClick={handleBulkFilter}>
+            <Checkbox
+              indeterminate={selectedTypes.size > 0 && selectedTypes.size < schemes.length}
+              checked={schemes.length > 0 && selectedTypes.size === schemes.length}
+              size="small"
+              sx={{ p: 0.5, mr: 0.5 }}
+            />
+            <Typography sx={{ fontSize: 13, fontWeight: 700 }}>
+              {schemes.length > 0 && selectedTypes.size === schemes.length
+                ? "Deselect all"
+                : "Select all"}
+            </Typography>
+          </MenuItem>
+          <Divider sx={{ my: 0.5 }} />
           {schemes.map((s) => (
             <MenuItem key={s.schemeType} dense onClick={() => toggleType(s.schemeType)}>
               <Checkbox
@@ -728,6 +751,50 @@ const ExperimentOutput = () => {
                   Probabilities of Approval
                 </SectionHeader>
                 <KpiMatrix schemes={results} colorMap={colorMap} />
+              </Box>
+
+              {/* ── Section 3: Graph (placeholder) ── */}
+              <Box>
+                <SectionHeader>Graph</SectionHeader>
+                <Paper
+                  elevation={0}
+                  sx={(theme) => ({
+                    borderRadius: 3,
+                    border: "1px dashed",
+                    borderColor: alpha(theme.palette.common.black, 0.12),
+                    background: alpha(theme.palette.common.white, 0.5),
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minHeight: 180,
+                  })}
+                >
+                  <Typography sx={{ color: "text.disabled", fontWeight: 700, fontStyle: "italic" }}>
+                    Coming soon
+                  </Typography>
+                </Paper>
+              </Box>
+
+              {/* ── Section 4: Cashflows (placeholder) ── */}
+              <Box>
+                <SectionHeader>Cashflows</SectionHeader>
+                <Paper
+                  elevation={0}
+                  sx={(theme) => ({
+                    borderRadius: 3,
+                    border: "1px dashed",
+                    borderColor: alpha(theme.palette.common.black, 0.12),
+                    background: alpha(theme.palette.common.white, 0.5),
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minHeight: 180,
+                  })}
+                >
+                  <Typography sx={{ color: "text.disabled", fontWeight: 700, fontStyle: "italic" }}>
+                    Coming soon
+                  </Typography>
+                </Paper>
               </Box>
 
             </Stack>
