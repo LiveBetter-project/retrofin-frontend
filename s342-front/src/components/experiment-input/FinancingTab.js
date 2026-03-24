@@ -6,6 +6,7 @@ import {
   Alert,
   Box,
   CircularProgress,
+  Fab,
   Grow,
   IconButton,
   Paper,
@@ -17,6 +18,7 @@ import { alpha } from "@mui/material/styles";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 
 import ExperimentsAPI from "../../api/experiments";
 import { AppButton } from "../index";
@@ -47,7 +49,7 @@ import SchemeFields from "./SchemeFields";
  *   removeEquity() — remove the equity scheme if present
  */
 const FinancingTab = React.forwardRef(function FinancingTab(
-  { experimentId, buildings = [], onReadinessRefresh, onPageError, onSchemesChange },
+  { experimentId, buildings = [], onReadinessRefresh, onPageError, onSchemesChange, onSchemesReadyChange },
   ref,
 ) {
   const [loading, setLoading] = useState(true);
@@ -72,6 +74,10 @@ const FinancingTab = React.forwardRef(function FinancingTab(
   const [addSchemeError, setAddSchemeError] = useState("");
   // Entry animation
   const [animateRows, setAnimateRows] = useState(false);
+  // Initial draft params per scheme id — baseline for dirty detection (SCHEME_DEFAULTS or loaded params)
+  const [fsInitialDraftById, setFsInitialDraftById] = useState({});
+  // Scroll-to-top visibility
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   // Keep a live ref to fsItems/fsDraftById for use in imperative handle
   const fsItemsRef = useRef(fsItems);
@@ -110,6 +116,9 @@ const FinancingTab = React.forwardRef(function FinancingTab(
         const saved = {};
         items.forEach((fs) => { saved[fs.id] = fs.params ?? {}; });
         setSavedParamsById(saved);
+        const initial = {};
+        items.forEach((fs) => { initial[fs.id] = fs.params ?? {}; });
+        setFsInitialDraftById(initial);
       } catch (err) {
         if (!mounted) return;
         const { msg } = extractApiError(err, "Failed to load financing schemes.");
@@ -181,7 +190,7 @@ const FinancingTab = React.forwardRef(function FinancingTab(
   };
 
   const isDirtyScheme = (fsId) =>
-    !paramsEqual(fsDraftById?.[fsId], savedParamsById?.[fsId]);
+    !paramsEqual(fsDraftById?.[fsId], fsInitialDraftById?.[fsId]);
 
   // ── Capex overflow check ──────────────────────────────────────────────
   const getSchemeFinancingAmount = (schemeKey, params) => {
@@ -243,6 +252,7 @@ const FinancingTab = React.forwardRef(function FinancingTab(
           setFsItems((prev) => prev.filter((x) => x.id !== equityItem.id));
           setFsDraftById((prev) => { const n = { ...(prev || {}) }; delete n[equityItem.id]; return n; });
           setSavedParamsById((prev) => { const n = { ...(prev || {}) }; delete n[equityItem.id]; return n; });
+          setFsInitialDraftById((prev) => { const n = { ...(prev || {}) }; delete n[equityItem.id]; return n; });
         }
       }
       const created = await ExperimentsAPI.addExperimentFinancingScheme(experimentId, {
@@ -254,6 +264,7 @@ const FinancingTab = React.forwardRef(function FinancingTab(
       const defaults = SCHEME_DEFAULTS[schemeKey] || {};
       const nextItems = [...fsItems.filter((x) => x.scheme_key !== "equity"), created].filter(Boolean);
       setFsDraftById((prev) => ({ ...(prev || {}), [created.id]: { ...defaults } }));
+      setFsInitialDraftById((prev) => ({ ...(prev || {}), [created.id]: { ...defaults } }));
       setSavedParamsById((prev) => ({ ...(prev || {}), [created.id]: created.params ?? {} }));
       setFsItems(nextItems);
       if (onSchemesChange) onSchemesChange(nextItems);
@@ -288,6 +299,7 @@ const FinancingTab = React.forwardRef(function FinancingTab(
       setDefsByKey((prev) => ({ ...(prev || {}), equity: def }));
       const nextItems = [created];
       setFsDraftById({ [created.id]: {} });
+      setFsInitialDraftById({ [created.id]: {} });
       setSavedParamsById({ [created.id]: {} });
       setFsItems(nextItems);
       if (onSchemesChange) onSchemesChange(nextItems);
@@ -318,6 +330,11 @@ const FinancingTab = React.forwardRef(function FinancingTab(
         delete next[fsId];
         return next;
       });
+      setFsInitialDraftById((prev) => {
+        const next = { ...(prev || {}) };
+        delete next[fsId];
+        return next;
+      });
       await onReadinessRefresh();
     } catch (err) {
       const { msg } = extractApiError(err, "Failed to remove financing scheme.");
@@ -341,6 +358,7 @@ const FinancingTab = React.forwardRef(function FinancingTab(
       );
       setFsItems((prev) => prev.map((x) => (x.id === fsId ? updated : x)));
       setSavedParamsById((prev) => ({ ...(prev || {}), [fsId]: params }));
+      setFsInitialDraftById((prev) => ({ ...(prev || {}), [fsId]: params }));
       await onReadinessRefresh();
     } catch (err) {
       const { msg, details } = extractApiError(err, "Failed to save scheme params.");
@@ -353,6 +371,26 @@ const FinancingTab = React.forwardRef(function FinancingTab(
       setFsSaveById((p) => ({ ...(p || {}), [fsId]: false }));
     }
   };
+
+  // ── onSchemesReadyChange effect ───────────────────────────────────────
+  useEffect(() => {
+    if (loading || !onSchemesReadyChange) return;
+    const ready = (fsItems || []).some((fs) => {
+      const def = defsByKey[fs.scheme_key];
+      const saved = savedParamsById[fs.id] ?? {};
+      if (Object.keys(saved).length > 0) return true;
+      const hasFields = (def?.fields?.length ?? 1) > 0;
+      return !hasFields;
+    });
+    onSchemesReadyChange(ready);
+  }, [fsItems, savedParamsById, defsByKey, loading, onSchemesReadyChange]);
+
+  // ── Scroll-to-top effect ──────────────────────────────────────────────
+  useEffect(() => {
+    const onScroll = () => setShowScrollTop(window.scrollY > 200);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   // Keep live refs for imperative handle
   removeSchemeRef.current = removeScheme;
@@ -377,6 +415,7 @@ const FinancingTab = React.forwardRef(function FinancingTab(
   }
 
   return (
+    <>
     <Stack spacing={2}>
       <Typography
         sx={{
@@ -529,7 +568,6 @@ const FinancingTab = React.forwardRef(function FinancingTab(
                                   return { ...(prev || {}), [fsItem.id]: nextP };
                                 })
                               }
-                              onBlurSave={() => patchSchemeParams(fsItem.id, key)}
                             />
 
                             <Stack direction="row" justifyContent="flex-end" sx={{ mt: 1.5 }}>
@@ -594,6 +632,36 @@ const FinancingTab = React.forwardRef(function FinancingTab(
         })}
       </Box>
     </Stack>
+    {showScrollTop && (
+      <Box
+        sx={{
+          position: "fixed",
+          bottom: 28,
+          right: 28,
+          zIndex: 10,
+        }}
+      >
+        <Fab
+          size="medium"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          aria-label="Scroll to top"
+          sx={(theme) => ({
+            background: `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.dark} 100%)`,
+            color: theme.palette.common.white,
+            boxShadow: `0 8px 24px ${alpha(theme.palette.success.main, 0.35)}`,
+            "&:hover": {
+              background: `linear-gradient(135deg, ${theme.palette.success.dark} 0%, ${theme.palette.success.main} 100%)`,
+              transform: "translateY(-2px)",
+              boxShadow: `0 12px 28px ${alpha(theme.palette.success.main, 0.42)}`,
+            },
+            transition: "transform 180ms ease, box-shadow 180ms ease",
+          })}
+        >
+          <KeyboardArrowUpIcon />
+        </Fab>
+      </Box>
+    )}
+    </>
   );
 });
 
