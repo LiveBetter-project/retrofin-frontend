@@ -673,7 +673,7 @@ const ExperimentOutput = () => {
       <Box
         sx={(theme) => ({
           position: "relative",
-          p: { xs: 1.2, md: 0.5 },
+          p: "4px",
           borderRadius: 4,
           backgroundColor: theme.palette.secondary.main,
           boxShadow: "0 22px 60px rgba(0,0,0,0.14)",
