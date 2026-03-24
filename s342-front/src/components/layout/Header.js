@@ -168,7 +168,7 @@ const Header = () => {
                 direction="row"
                 alignItems="center"
                 spacing={1.25}
-                sx={{ minWidth: 0, flex: { xs: 1, md: "0 0 auto" } }}
+                sx={{ minWidth: 0, flex: "0 0 auto", flexShrink: 0 }}
               >
                 {isAuthenticated && (
                   <IconButton
@@ -262,6 +262,7 @@ const Header = () => {
                   display: "flex",
                   justifyContent: "center",
                   px: 1,
+                  minWidth: 0,
                 }}
               >
                 <Chip
@@ -293,7 +294,8 @@ const Header = () => {
                 alignItems="center"
                 spacing={1}
                 sx={{
-                  flex: { xs: 1, md: "0 0 auto" },
+                  flex: "0 0 auto",
+                  flexShrink: 0,
                   justifyContent: "flex-end",
                 }}
               >
