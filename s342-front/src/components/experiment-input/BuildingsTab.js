@@ -230,6 +230,18 @@ const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError, onBuildin
   if (screen === "list") {
     return (
       <Box>
+        <Typography
+          sx={{
+            textAlign: "center",
+            color: "text.disabled",
+            fontWeight: 900,
+            fontStyle: "italic",
+            fontSize: 16,
+            mb: 2,
+          }}
+        >
+          Add at least one Building and fill in the necessary fields to run the experiment
+        </Typography>
         <Stack spacing={2}>
           {(buildings || []).map((b, idx) => (
             <Grow key={b.id} in timeout={350 + idx * 110} style={{ transformOrigin: "50% 0%" }}>

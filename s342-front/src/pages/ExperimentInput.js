@@ -231,7 +231,7 @@ const ExperimentInput = () => {
 
       {/* EQUITY CHECKBOX — shown below Run button when on financing tab */}
       {tab === "financing" && (
-        <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", mb: 1 }}>
           <Paper
             elevation={0}
             sx={(theme) => ({
@@ -269,6 +269,11 @@ const ExperimentInput = () => {
               sx={{ m: 0 }}
             />
           </Paper>
+          <Typography
+            sx={{ fontSize: 16, color: "text.disabled", fontStyle: "italic", mt: 0.5, mr: 0.5, fontWeight: 900 }}
+          >
+            {fsItems.length === 1 ? "1 scheme selected" : `${fsItems.length} schemes selected`}
+          </Typography>
         </Box>
       )}
 

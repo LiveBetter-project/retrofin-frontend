@@ -27,7 +27,6 @@ import {
   glassDeleteIconButtonSx,
   glassGreenButtonSx,
   glassPanelSx,
-  glassTitlePillSx,
   paramsEqual,
 } from "./constants";
 import SchemeInfoBox from "./SchemeInfoBox";
@@ -385,10 +384,10 @@ const FinancingTab = React.forwardRef(function FinancingTab(
           color: "text.disabled",
           fontWeight: 900,
           fontStyle: "italic",
-          fontSize: 18,
+          fontSize: 16,
         }}
       >
-        Fill in the necessary fields to run the experiment
+        Add at least one Financing Scheme and fill in the necessary fields to run the experiment
       </Typography>
 
       {addSchemeError && (
@@ -399,14 +398,6 @@ const FinancingTab = React.forwardRef(function FinancingTab(
 
       {/* ── Accordion scheme picker with inline config blocks ── */}
       <Box>
-        <Box sx={{ display: "flex", justifyContent: "center", mb: 1.5 }}>
-          <Box sx={glassTitlePillSx}>
-            <Typography sx={{ fontWeight: 800, fontStyle: "italic", color: "text.primary" }}>
-              {addSchemeLoading ? "Updating schemes…" : "+ Add a Financing Scheme"}
-            </Typography>
-          </Box>
-        </Box>
-
         {SCHEME_SECTIONS.map((section, sectionIdx) => {
           const schemesInSection = section.schemes.filter((key) =>
             catalogOptions.some((o) => o.key === key),
