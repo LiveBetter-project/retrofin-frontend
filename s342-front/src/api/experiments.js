@@ -49,6 +49,12 @@ export const ExperimentsAPI = {
     return res.data;
   },
 
+  // --- Results ---
+  getResults: async (experimentId) => {
+    const res = await axiosInstance.get(`/experiments/${experimentId}/results/`);
+    return res.data; // { run_id, run_status, items: [...] }
+  },
+
   // --- Buildings (v1 includes aggregated EEM fields inside building) ---
   listBuildings: async (experimentId) => {
     const res = await axiosInstance.get(`/experiments/${experimentId}/buildings/`);
