@@ -13,6 +13,7 @@ import {
   IconButton,
   Paper,
   Stack,
+  TextField,
   Typography,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
@@ -22,10 +23,11 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import BarChartOutlinedIcon from "@mui/icons-material/BarChartOutlined";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import DriveFileRenameOutlineIcon from "@mui/icons-material/DriveFileRenameOutline";
 
 import ExperimentsAPI from "../api/experiments";
 import TextInput from "../components/TextInput";
-import { pageHeaderPillSx } from "../components/experiment-input/constants";
+import { extractApiError, pageHeaderPillSx } from "../components/experiment-input/constants";
 
 const formatDDMMYY = (iso) => {
   if (!iso) return "—";
@@ -69,6 +71,11 @@ const Dashboard = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogName, setDialogName] = useState("");
   const [animateRows, setAnimateRows] = useState(false);
+
+  const [renameId,      setRenameId]      = useState(null);
+  const [renameName,    setRenameName]    = useState("");
+  const [renameLoading, setRenameLoading] = useState(false);
+  const [renameError,   setRenameError]   = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -131,6 +138,38 @@ const Dashboard = () => {
       setError("Failed to delete experiment.");
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const openRename = (row) => {
+    setRenameId(row.id);
+    setRenameName(row.name);
+    setRenameError("");
+  };
+  const closeRename = () => {
+    if (renameLoading) return;
+    setRenameId(null);
+    setRenameName("");
+    setRenameError("");
+  };
+
+  const onRenameConfirm = async () => {
+    const name = renameName.trim();
+    if (!name) { setRenameError("Name cannot be blank."); return; }
+    // Frontend pre-check
+    const conflict = items.find((x) => x.id !== renameId && x.name === name);
+    if (conflict) { setRenameError("An experiment with this name already exists."); return; }
+    setRenameLoading(true);
+    setRenameError("");
+    try {
+      const updated = await ExperimentsAPI.patch(renameId, { name });
+      setItems((prev) => prev.map((x) => x.id === renameId ? { ...x, name: updated.name ?? name } : x));
+      closeRename();
+    } catch (err) {
+      const { msg } = extractApiError(err, "Failed to rename experiment.");
+      setRenameError(msg);
+    } finally {
+      setRenameLoading(false);
     }
   };
 
@@ -259,6 +298,78 @@ const Dashboard = () => {
         </DialogActions>
       </Dialog>
 
+      {/* ── Rename dialog ── */}
+      <Dialog
+        open={Boolean(renameId)}
+        onClose={closeRename}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: (theme) => ({
+            borderRadius: 4,
+            p: 1,
+            border: "1px solid",
+            borderColor: alpha(theme.palette.common.white, 0.55),
+            background: `linear-gradient(135deg, ${alpha(theme.palette.common.white, 0.82)} 0%, ${alpha(theme.palette.grey[100], 0.64)} 100%)`,
+            backdropFilter: "blur(20px)",
+            boxShadow: `0 24px 60px ${alpha(theme.palette.common.black, 0.18)}`,
+          }),
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, fontStyle: "italic", pb: 1 }}>
+          Rename experiment
+        </DialogTitle>
+        <DialogContent sx={{ pt: "20px !important" }}>
+          <TextInput
+            name="renameName"
+            label="Experiment Name"
+            value={renameName}
+            onChange={(e) => { setRenameName(e.target.value); setRenameError(""); }}
+            autoComplete="off"
+            onKeyDown={(e) => { if (e.key === "Enter" && !renameLoading) onRenameConfirm(); }}
+          />
+          {renameError && (
+            <Typography sx={{ color: "error.main", mt: 1, fontWeight: 700, fontSize: 13 }}>
+              {renameError}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, justifyContent: "flex-end" }}>
+          <Button onClick={closeRename} disabled={renameLoading} sx={{ color: "text.secondary", fontWeight: 700 }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={onRenameConfirm}
+            disabled={renameLoading || !renameName.trim()}
+            variant="contained"
+            endIcon={renameLoading ? <CircularProgress size={16} color="inherit" /> : <DriveFileRenameOutlineIcon />}
+            sx={(theme) => ({
+              color: theme.palette.common.white,
+              background: `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.dark} 100%)`,
+              border: "1px solid",
+              borderColor: alpha(theme.palette.common.white, 0.24),
+              borderRadius: "999px",
+              px: 3.2,
+              py: 1.1,
+              fontWeight: 800,
+              backdropFilter: "blur(14px)",
+              boxShadow: `0 14px 32px ${alpha(theme.palette.success.main, 0.3)}`,
+              "&:hover": {
+                background: `linear-gradient(135deg, ${theme.palette.success.dark} 0%, ${theme.palette.success.main} 100%)`,
+                transform: "translateY(-2px)",
+                boxShadow: `0 18px 36px ${alpha(theme.palette.success.main, 0.36)}`,
+              },
+              "&.Mui-disabled": {
+                color: alpha(theme.palette.common.white, 0.8),
+                background: alpha(theme.palette.success.main, 0.45),
+              },
+            })}
+          >
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* ── Dashboard header — outside the frame ── */}
       <Stack
         direction="row"
@@ -323,7 +434,7 @@ const Dashboard = () => {
       <Box
         sx={(theme) => ({
           position: "relative",
-          p: { xs: 1.2, md: 0.5 },
+          p: "4px",
           borderRadius: 4,
           backgroundColor: theme.palette.secondary.main,
           boxShadow: `0 22px 60px ${alpha(theme.palette.common.black, 0.14)}`,
@@ -356,7 +467,7 @@ const Dashboard = () => {
                 fontWeight: 800,
                 fontStyle: "italic",
                 color: "text.secondary",
-                textAlign: "left",
+                textAlign: "center",
               }}
             >
               Date
@@ -367,12 +478,12 @@ const Dashboard = () => {
                 fontWeight: 800,
                 fontStyle: "italic",
                 color: "text.secondary",
-                textAlign: "left",
+                textAlign: "center",
               }}
             >
               Status
             </Typography>
-            <Box sx={{ width: 120 }} />
+            <Box sx={{ width: 144 }} />
           </Stack>
 
           {error && !dialogOpen && (
@@ -443,11 +554,11 @@ const Dashboard = () => {
                         {r.name}
                       </Typography>
 
-                      <Typography sx={{ width: 140, fontWeight: 800 }}>
+                      <Typography sx={{ width: 140, fontWeight: 800, textAlign: "center" }}>
                         {r.date}
                       </Typography>
 
-                      <Box sx={{ width: 120 }}>
+                      <Box sx={{ width: 120, display: "flex", justifyContent: "center" }}>
                         <Chip
                           label={r.status}
                           size="small"
@@ -455,35 +566,8 @@ const Dashboard = () => {
                         />
                       </Box>
 
-                      <Stack
-                        direction="row"
-                        spacing={1}
-                        sx={{ width: 120, justifyContent: "flex-end" }}
-                      >
-                        <IconButton
-                          aria-label="Delete"
-                          onClick={() => onDelete(r.id)}
-                          disabled={busyId === r.id}
-                          sx={(theme) => ({
-                            color: "secondary.main",
-                            bgcolor: alpha(theme.palette.common.white, 0.45),
-                            border: "1px solid",
-                            borderColor: alpha(theme.palette.common.white, 0.4),
-                            backdropFilter: "blur(10px)",
-                            transition:
-                              "background-color 180ms ease, transform 180ms ease",
-                            "&:hover": {
-                              bgcolor: alpha(
-                                theme.palette.secondary.main,
-                                0.12,
-                              ),
-                              transform: "translateY(-1px)",
-                            },
-                          })}
-                        >
-                          <DeleteOutlineIcon />
-                        </IconButton>
-
+                      <Stack direction="row" spacing={0.75} sx={{ width: 144, justifyContent: "flex-end" }}>
+                        {/* View */}
                         <IconButton
                           aria-label="View"
                           onClick={() =>
@@ -497,15 +581,45 @@ const Dashboard = () => {
                             border: "1px solid",
                             borderColor: alpha(theme.palette.common.white, 0.4),
                             backdropFilter: "blur(10px)",
-                            transition:
-                              "background-color 180ms ease, transform 180ms ease",
-                            "&:hover": {
-                              bgcolor: alpha(theme.palette.success.main, 0.1),
-                              transform: "translateY(-1px)",
-                            },
+                            transition: "background-color 180ms ease, transform 180ms ease",
+                            "&:hover": { bgcolor: alpha(theme.palette.success.main, 0.1), transform: "translateY(-1px)" },
                           })}
                         >
                           <VisibilityOutlinedIcon />
+                        </IconButton>
+                        {/* Rename */}
+                        <IconButton
+                          aria-label="Rename"
+                          onClick={() => openRename(r)}
+                          disabled={busyId === r.id}
+                          sx={(theme) => ({
+                            color: "text.primary",
+                            bgcolor: alpha(theme.palette.common.white, 0.45),
+                            border: "1px solid",
+                            borderColor: alpha(theme.palette.common.white, 0.4),
+                            backdropFilter: "blur(10px)",
+                            transition: "background-color 180ms ease, transform 180ms ease",
+                            "&:hover": { bgcolor: alpha(theme.palette.success.main, 0.1), transform: "translateY(-1px)" },
+                          })}
+                        >
+                          <DriveFileRenameOutlineIcon />
+                        </IconButton>
+                        {/* Delete */}
+                        <IconButton
+                          aria-label="Delete"
+                          onClick={() => onDelete(r.id)}
+                          disabled={busyId === r.id}
+                          sx={(theme) => ({
+                            color: "secondary.main",
+                            bgcolor: alpha(theme.palette.common.white, 0.45),
+                            border: "1px solid",
+                            borderColor: alpha(theme.palette.common.white, 0.4),
+                            backdropFilter: "blur(10px)",
+                            transition: "background-color 180ms ease, transform 180ms ease",
+                            "&:hover": { bgcolor: alpha(theme.palette.secondary.main, 0.12), transform: "translateY(-1px)" },
+                          })}
+                        >
+                          <DeleteOutlineIcon />
                         </IconButton>
                       </Stack>
                     </Stack>
