@@ -15,7 +15,7 @@ import { alpha } from "@mui/material/styles";
 
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
-import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 
 import ExperimentsAPI from "../../api/experiments";
@@ -259,26 +259,27 @@ const BuildingsTab = ({ experimentId, onReadinessRefresh, onPageError, onBuildin
                     {b?.name || "Untitled building"}
                   </Typography>
 
-                  <IconButton
-                    aria-label="Delete building"
-                    onClick={() => deleteBuilding(b.id)}
-                    disabled={buildingBusyId === b.id}
-                    sx={glassDeleteIconButtonSx}
-                  >
-                    {buildingBusyId === b.id ? (
-                      <CircularProgress size={20} />
-                    ) : (
-                      <DeleteOutlineIcon />
-                    )}
-                  </IconButton>
-
-                  <IconButton
-                    aria-label="Edit building"
-                    onClick={() => openEditBuilding(b)}
-                    sx={glassViewIconButtonSx}
-                  >
-                    <VisibilityOutlinedIcon />
-                  </IconButton>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <IconButton
+                      aria-label="Edit building"
+                      onClick={() => openEditBuilding(b)}
+                      sx={glassViewIconButtonSx}
+                    >
+                      <EditOutlinedIcon />
+                    </IconButton>
+                    <IconButton
+                      aria-label="Delete building"
+                      onClick={() => deleteBuilding(b.id)}
+                      disabled={buildingBusyId === b.id}
+                      sx={glassDeleteIconButtonSx}
+                    >
+                      {buildingBusyId === b.id ? (
+                        <CircularProgress size={20} />
+                      ) : (
+                        <DeleteOutlineIcon />
+                      )}
+                    </IconButton>
+                  </Stack>
                 </Stack>
               </Paper>
             </Grow>
