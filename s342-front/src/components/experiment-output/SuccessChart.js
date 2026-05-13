@@ -4,7 +4,7 @@ import { Box, Typography } from "@mui/material";
 import { CHART_H, fmtPct } from "./outputHelpers";
 
 // ---------------------------------------------------------------------------
-// SuccessChart — vertical CSS bars sorted ascending by Pr(NPV > 0)
+// SuccessChart - vertical CSS bars ordered by the parent-provided ranking
 // ---------------------------------------------------------------------------
 
 const SuccessChart = ({ data, colorMap }) => {

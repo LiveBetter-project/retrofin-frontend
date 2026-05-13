@@ -51,6 +51,11 @@ export function normalizeResults(items) {
     schemeType:  item.scheme_type,
     schemeName:  labelFromKey(item.scheme_type),
     successProb: item.pr_npv_positive, // Pr(NPV > 0)
+    probabilities: {
+      npvPositive: item.pr_npv_positive,
+      pbpWithinLifetime: item.pr_pbp_within_lifetime,
+      dppWithinLifetime: item.pr_dpp_within_lifetime,
+    },
     p50: {
       irr: item.irr_p50, npv: item.npv_p50,
       roi: item.roi_p50, dpp: item.dpp_p50, pbp: item.pbp_p50,
@@ -63,5 +68,14 @@ export function normalizeResults(items) {
       irr: item.irr_p95, npv: item.npv_p95,
       roi: item.roi_p95, dpp: item.dpp_p95, pbp: item.pbp_p95,
     },
+    totalRepayment: {
+      p50: item.total_repayment_p50,
+    },
+    cashflows: (item.cashflows || []).map((cf) => ({
+      year: cf.year,
+      inflow: cf.inflow,
+      outflow: cf.outflow,
+    })),
+    kpiHistograms: item.kpi_histograms || {},
   }));
 }

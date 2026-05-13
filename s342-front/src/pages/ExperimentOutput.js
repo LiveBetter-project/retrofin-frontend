@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Alert, Box, CircularProgress, Paper, Stack, Typography } from "@mui/material";
-import { alpha } from "@mui/material/styles";
+import { Alert, Box, CircularProgress, Stack, Typography } from "@mui/material";
 
 import ExperimentsAPI from "../api/experiments";
 import { AppButton } from "../components/index";
@@ -12,6 +11,8 @@ import {
 } from "../components/experiment-input/constants";
 import { CHART_COLORS, normalizeResults } from "../components/experiment-output/outputHelpers";
 import KpiCards from "../components/experiment-output/KpiCards";
+import CashFlows from "../components/experiment-output/CashFlows";
+import KpiHistograms from "../components/experiment-output/KpiHistograms";
 import KpiMatrix from "../components/experiment-output/KpiMatrix";
 import SectionHeader from "../components/experiment-output/SectionHeader";
 import SuccessChart from "../components/experiment-output/SuccessChart";
@@ -96,6 +97,7 @@ const ExperimentOutput = () => {
   const [error,      setError]      = useState("");
   const [experiment, setExperiment] = useState(null);
   const [results,    setResults]    = useState([]); // normalised
+  const [selectedScheme, setSelectedScheme] = useState(null);
 
   useEffect(() => {
     if (!experimentId) {
@@ -134,16 +136,26 @@ const ExperimentOutput = () => {
     [results],
   );
 
-  // Sort ascending by successProb for the chart
+  // Sort ascending by median NPV for the chart
   const sortedForChart = useMemo(
-    () => [...results].sort((a, b) => (a.successProb ?? 0) - (b.successProb ?? 0)),
+    () => [...results].sort((a, b) => (a.p50?.npv ?? 0) - (b.p50?.npv ?? 0)),
     [results],
   );
 
-  // Best scheme = highest successProb (last in sorted list)
+  // Best scheme = highest median NPV (last in sorted list)
   const bestScheme = sortedForChart.length
     ? sortedForChart[sortedForChart.length - 1]
     : null;
+
+  useEffect(() => {
+    if (!results.length) {
+      setSelectedScheme(null);
+      return;
+    }
+    if (!results.some((scheme) => scheme.schemeType === selectedScheme)) {
+      setSelectedScheme(results[0].schemeType);
+    }
+  }, [results, selectedScheme]);
 
   if (loading) {
     return (
@@ -256,7 +268,7 @@ const ExperimentOutput = () => {
               <Box>
                 <SectionHeader
                   helpContent={SUCCESS_HELP}
-                  subtitle="Success = share of simulation outcomes where NPV is positive. KPI cards show median values for the best scheme."
+                  subtitle="Success = share of simulation outcomes where NPV is positive. KPI cards show median values for the top-ranked scheme."
                 >
                   Success Probability
                 </SectionHeader>
@@ -281,46 +293,25 @@ const ExperimentOutput = () => {
 
               {/* ── Section 3: Graph (placeholder) ── */}
               <Box>
-                <SectionHeader>Graph</SectionHeader>
-                <Paper
-                  elevation={0}
-                  sx={(theme) => ({
-                    borderRadius: 3,
-                    border: "1px dashed",
-                    borderColor: alpha(theme.palette.common.black, 0.12),
-                    background: alpha(theme.palette.common.white, 0.5),
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    minHeight: 180,
-                  })}
-                >
-                  <Typography sx={{ color: "text.disabled", fontWeight: 700, fontStyle: "italic" }}>
-                    Coming soon
-                  </Typography>
-                </Paper>
+                <SectionHeader>KPI Histograms</SectionHeader>
+                <KpiHistograms
+                  schemes={results}
+                  colorMap={colorMap}
+                  selectedScheme={selectedScheme}
+                  onSelectScheme={setSelectedScheme}
+                />
               </Box>
 
               {/* ── Section 4: Cashflows (placeholder) ── */}
               <Box>
+                {console.log("RESULTS FOR CASHFLOWS", results)}
                 <SectionHeader>Cashflows</SectionHeader>
-                <Paper
-                  elevation={0}
-                  sx={(theme) => ({
-                    borderRadius: 3,
-                    border: "1px dashed",
-                    borderColor: alpha(theme.palette.common.black, 0.12),
-                    background: alpha(theme.palette.common.white, 0.5),
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    minHeight: 180,
-                  })}
-                >
-                  <Typography sx={{ color: "text.disabled", fontWeight: 700, fontStyle: "italic" }}>
-                    Coming soon
-                  </Typography>
-                </Paper>
+                <CashFlows
+                  schemes={results}
+                  colorMap={colorMap}
+                  selectedScheme={selectedScheme}
+                  onSelectScheme={setSelectedScheme}
+                />
               </Box>
 
             </Stack>
