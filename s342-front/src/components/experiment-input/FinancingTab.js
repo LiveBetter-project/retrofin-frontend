@@ -81,7 +81,6 @@ const FinancingTab = React.forwardRef(function FinancingTab(
 
   // Keep a live ref to fsItems/fsDraftById for use in imperative handle
   const fsItemsRef = useRef(fsItems);
-  const removeSchemeRef = useRef(null);
   const removeAllAndAddEquityRef = useRef(null);
   const selectAllRef = useRef(null);
   const deselectAllRef = useRef(null);
@@ -116,7 +115,14 @@ const FinancingTab = React.forwardRef(function FinancingTab(
             catList.filter((x) => (x.key ?? x.scheme_key) !== "equity").length,
           );
         }
-        const items = Array.isArray(selected) ? selected : [];
+        let items = Array.isArray(selected) ? selected : [];
+        if (!items.some((fs) => fs.scheme_key === "equity")) {
+          const equityItem = await ExperimentsAPI.addExperimentFinancingScheme(experimentId, {
+            scheme_type: "equity",
+            params: {},
+          });
+          items = [...items, equityItem];
+        }
         setFsItems(items);
         if (onSchemesChange) onSchemesChange(items);
 
@@ -189,12 +195,33 @@ const FinancingTab = React.forwardRef(function FinancingTab(
     [fsItems],
   );
 
+  const seedSchemeState = (schemeItem, paramsOverride) => {
+    if (!schemeItem?.id) return;
+    const params = paramsOverride ?? schemeItem.params ?? {};
+    setFsDraftById((prev) => ({ ...(prev || {}), [schemeItem.id]: params }));
+    setSavedParamsById((prev) => ({ ...(prev || {}), [schemeItem.id]: params }));
+    setFsInitialDraftById((prev) => ({ ...(prev || {}), [schemeItem.id]: params }));
+  };
+
   const ensureDef = async (schemeKey) => {
     if (!schemeKey) return null;
     if (defsByKey?.[schemeKey]) return defsByKey[schemeKey];
     const def = await ExperimentsAPI.getFinancingSchemeDefinition(schemeKey);
     setDefsByKey((prev) => ({ ...(prev || {}), [schemeKey]: def }));
     return def;
+  };
+
+  const ensureEquityPresent = async (currentItems = fsItemsRef.current) => {
+    const equityItem = (currentItems || []).find((x) => x.scheme_key === "equity");
+    if (equityItem) return equityItem;
+
+    const created = await ExperimentsAPI.addExperimentFinancingScheme(experimentId, {
+      scheme_type: "equity",
+      params: {},
+    });
+    await ensureDef("equity");
+    seedSchemeState(created);
+    return created;
   };
 
   const isDirtyScheme = (fsId) =>
@@ -252,17 +279,12 @@ const FinancingTab = React.forwardRef(function FinancingTab(
     setAddSchemeLoading(true);
     setAddSchemeError("");
     try {
-      // If equity is active, remove it first
-      if (schemeKey !== "equity") {
-        const equityItem = fsItems.find((x) => x.scheme_key === "equity");
-        if (equityItem) {
-          await ExperimentsAPI.removeExperimentFinancingScheme(experimentId, equityItem.id);
-          setFsItems((prev) => prev.filter((x) => x.id !== equityItem.id));
-          setFsDraftById((prev) => { const n = { ...(prev || {}) }; delete n[equityItem.id]; return n; });
-          setSavedParamsById((prev) => { const n = { ...(prev || {}) }; delete n[equityItem.id]; return n; });
-          setFsInitialDraftById((prev) => { const n = { ...(prev || {}) }; delete n[equityItem.id]; return n; });
-        }
+      if (schemeKey === "equity") {
+        await removeAllAndAddEquity();
+        return;
       }
+      const current = fsItemsRef.current;
+      const equityItem = await ensureEquityPresent(current);
       const created = await ExperimentsAPI.addExperimentFinancingScheme(experimentId, {
         scheme_type: schemeKey,
         params: {},
@@ -270,7 +292,10 @@ const FinancingTab = React.forwardRef(function FinancingTab(
       const def = await ensureDef(schemeKey);
       setDefsByKey((prev) => ({ ...(prev || {}), [schemeKey]: def }));
       const defaults = SCHEME_DEFAULTS[schemeKey] || {};
-      const nextItems = [...fsItems.filter((x) => x.scheme_key !== "equity"), created].filter(Boolean);
+      const baseItems = current.some((x) => x.id === equityItem.id)
+        ? current
+        : [...current, equityItem];
+      const nextItems = [...baseItems, created].filter(Boolean);
       setFsDraftById((prev) => ({ ...(prev || {}), [created.id]: { ...defaults } }));
       setFsInitialDraftById((prev) => ({ ...(prev || {}), [created.id]: { ...defaults } }));
       setSavedParamsById((prev) => ({ ...(prev || {}), [created.id]: created.params ?? {} }));
@@ -291,24 +316,20 @@ const FinancingTab = React.forwardRef(function FinancingTab(
     setAddSchemeLoading(true);
     setAddSchemeError("");
     try {
+      const current = fsItemsRef.current;
+      const existingEquity = current.find((fs) => fs.scheme_key === "equity");
       await Promise.all(
-        fsItems.map((fs) =>
-          ExperimentsAPI.removeExperimentFinancingScheme(experimentId, fs.id),
-        ),
+        current
+          .filter((fs) => fs.scheme_key !== "equity")
+          .map((fs) =>
+            ExperimentsAPI.removeExperimentFinancingScheme(experimentId, fs.id),
+          ),
       );
-      setFsItems([]);
-      setFsDraftById({});
-      setSavedParamsById({});
-      const created = await ExperimentsAPI.addExperimentFinancingScheme(experimentId, {
-        scheme_type: "equity",
-        params: {},
-      });
-      const def = await ensureDef("equity");
-      setDefsByKey((prev) => ({ ...(prev || {}), equity: def }));
+      const created = existingEquity ?? await ensureEquityPresent([]);
       const nextItems = [created];
-      setFsDraftById({ [created.id]: {} });
-      setFsInitialDraftById({ [created.id]: {} });
-      setSavedParamsById({ [created.id]: {} });
+      setFsDraftById({ [created.id]: created.params ?? {} });
+      setFsInitialDraftById({ [created.id]: created.params ?? {} });
+      setSavedParamsById({ [created.id]: created.params ?? {} });
       setFsItems(nextItems);
       if (onSchemesChange) onSchemesChange(nextItems);
       await onReadinessRefresh();
@@ -359,12 +380,12 @@ const FinancingTab = React.forwardRef(function FinancingTab(
     setAddSchemeError("");
     try {
       const current = fsItemsRef.current;
-      const equityItem = current.find((x) => x.scheme_key === "equity");
-      if (equityItem) {
-        await ExperimentsAPI.removeExperimentFinancingScheme(experimentId, equityItem.id);
-      }
+      const equityItem = await ensureEquityPresent(current);
+      const baseItems = current.some((x) => x.id === equityItem.id)
+        ? current
+        : [...current, equityItem];
       const alreadyKeys = new Set(
-        current.filter((x) => x.scheme_key !== "equity").map((x) => x.scheme_key),
+        baseItems.filter((x) => x.scheme_key !== "equity").map((x) => x.scheme_key),
       );
       const toAdd = nonEquityCatalog.filter((o) => !alreadyKeys.has(o.key));
       const created = await Promise.all(
@@ -376,8 +397,7 @@ const FinancingTab = React.forwardRef(function FinancingTab(
         ),
       );
       await Promise.all(toAdd.map((o) => ensureDef(o.key)));
-      const existing = current.filter((x) => x.scheme_key !== "equity");
-      const nextItems = [...existing, ...created.filter(Boolean)];
+      const nextItems = [...baseItems, ...created.filter(Boolean)];
       const draftPatch = {};
       const initialPatch = {};
       const savedPatch = {};
@@ -388,15 +408,9 @@ const FinancingTab = React.forwardRef(function FinancingTab(
         initialPatch[c.id] = { ...defaults };
         savedPatch[c.id] = c.params ?? {};
       });
-      if (equityItem) {
-        setFsDraftById((prev) => { const n = { ...(prev || {}) }; delete n[equityItem.id]; return { ...n, ...draftPatch }; });
-        setSavedParamsById((prev) => { const n = { ...(prev || {}) }; delete n[equityItem.id]; return { ...n, ...savedPatch }; });
-        setFsInitialDraftById((prev) => { const n = { ...(prev || {}) }; delete n[equityItem.id]; return { ...n, ...initialPatch }; });
-      } else {
-        setFsDraftById((prev) => ({ ...(prev || {}), ...draftPatch }));
-        setSavedParamsById((prev) => ({ ...(prev || {}), ...savedPatch }));
-        setFsInitialDraftById((prev) => ({ ...(prev || {}), ...initialPatch }));
-      }
+      setFsDraftById((prev) => ({ ...(prev || {}), [equityItem.id]: equityItem.params ?? {}, ...draftPatch }));
+      setSavedParamsById((prev) => ({ ...(prev || {}), [equityItem.id]: equityItem.params ?? {}, ...savedPatch }));
+      setFsInitialDraftById((prev) => ({ ...(prev || {}), [equityItem.id]: equityItem.params ?? {}, ...initialPatch }));
       setFsItems(nextItems);
       if (onSchemesChange) onSchemesChange(nextItems);
       await onReadinessRefresh();
@@ -414,16 +428,21 @@ const FinancingTab = React.forwardRef(function FinancingTab(
     setAddSchemeError("");
     try {
       const current = fsItemsRef.current;
+      const equityItem = current.find((x) => x.scheme_key === "equity");
       await Promise.all(
-        current.map((fs) =>
-          ExperimentsAPI.removeExperimentFinancingScheme(experimentId, fs.id),
-        ),
+        current
+          .filter((fs) => fs.scheme_key !== "equity")
+          .map((fs) =>
+            ExperimentsAPI.removeExperimentFinancingScheme(experimentId, fs.id),
+          ),
       );
-      setFsItems([]);
-      setFsDraftById({});
-      setSavedParamsById({});
-      setFsInitialDraftById({});
-      if (onSchemesChange) onSchemesChange([]);
+      const nextItems = equityItem ? [equityItem] : [await ensureEquityPresent([])];
+      const nextEquity = nextItems[0];
+      setFsItems(nextItems);
+      setFsDraftById({ [nextEquity.id]: nextEquity.params ?? {} });
+      setSavedParamsById({ [nextEquity.id]: nextEquity.params ?? {} });
+      setFsInitialDraftById({ [nextEquity.id]: nextEquity.params ?? {} });
+      if (onSchemesChange) onSchemesChange(nextItems);
       await onReadinessRefresh();
     } catch (err) {
       const { msg } = extractApiError(err, "Failed to remove all schemes.");
@@ -482,7 +501,6 @@ const FinancingTab = React.forwardRef(function FinancingTab(
   }, []);
 
   // Keep live refs for imperative handle
-  removeSchemeRef.current = removeScheme;
   removeAllAndAddEquityRef.current = removeAllAndAddEquity;
   selectAllRef.current = selectAllSchemes;
   deselectAllRef.current = deselectAllSchemes;
@@ -490,10 +508,7 @@ const FinancingTab = React.forwardRef(function FinancingTab(
   // ── Imperative handle (for ExperimentInput equity checkbox) ───────────
   useImperativeHandle(ref, () => ({
     addEquity: () => removeAllAndAddEquityRef.current(),
-    removeEquity: () => {
-      const equityItem = fsItemsRef.current.find((x) => x.scheme_key === "equity");
-      if (equityItem) return removeSchemeRef.current(equityItem.id);
-    },
+    removeEquity: () => Promise.resolve(),
     selectAll: () => selectAllRef.current?.(),
     deselectAll: () => deselectAllRef.current?.(),
   }), []);

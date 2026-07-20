@@ -9,8 +9,19 @@ const AuthProvider = ({ children }) => {
     localStorage.getItem("refresh_token")
   );
 
-  const setToken = (newToken) => setToken_(newToken || null);
-  const setRefreshToken = (newToken) => setRefreshToken_(newToken || null);
+  const setToken = (newToken) => {
+    const nextToken = newToken || null;
+    if (nextToken) localStorage.setItem("token", nextToken);
+    else localStorage.removeItem("token");
+    setToken_(nextToken);
+  };
+
+  const setRefreshToken = (newToken) => {
+    const nextToken = newToken || null;
+    if (nextToken) localStorage.setItem("refresh_token", nextToken);
+    else localStorage.removeItem("refresh_token");
+    setRefreshToken_(nextToken);
+  };
 
   // Persist to storage + keep axios header consistent (http.js also enforces this per-request)
   useEffect(() => {

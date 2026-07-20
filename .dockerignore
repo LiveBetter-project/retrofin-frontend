@@ -1,0 +1,5 @@
+.git
+s342-front/node_modules
+s342-front/build
+s342-front/.env*
+npm-debug.log*

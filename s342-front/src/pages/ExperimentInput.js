@@ -106,6 +106,7 @@ const ExperimentInput = () => {
   const isReady = buildings.length >= 1 && financingReady;
   const hasEquity = fsItems.some((x) => x.scheme_key === "equity");
   const nonEquityCount = fsItems.filter((x) => x.scheme_key !== "equity").length;
+  const equityOnly = hasEquity && nonEquityCount === 0;
 
   const handleBulkToggle = async () => {
     const allSelected = nonEquityCatalogCount > 0 && nonEquityCount >= nonEquityCatalogCount;
@@ -151,16 +152,7 @@ const ExperimentInput = () => {
 
   // ── Equity checkbox logic ─────────────────────────────────────────────
   const handleEquityToggle = () => {
-    if (hasEquity) {
-      // Uncheck: remove the equity scheme
-      setEquityActionLoading(true);
-      Promise.resolve(financingTabRef.current?.removeEquity()).finally(() =>
-        setEquityActionLoading(false),
-      );
-    } else {
-      // Check: open confirmation dialog (equity clears all other schemes)
-      setEquityDialogOpen(true);
-    }
+    if (!equityOnly) setEquityDialogOpen(true);
   };
 
   const handleEquityConfirm = async () => {
@@ -341,10 +333,10 @@ const ExperimentInput = () => {
                   py: 0.75,
                   borderRadius: "999px",
                   border: "1px solid",
-                  borderColor: hasEquity
+                  borderColor: equityOnly
                     ? alpha(theme.palette.success.main, 0.4)
                     : alpha(theme.palette.common.white, 0.55),
-                  background: hasEquity
+                  background: equityOnly
                     ? `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.12)} 0%, ${alpha(theme.palette.success.light, 0.08)} 100%)`
                     : `linear-gradient(135deg, ${alpha(theme.palette.common.white, 0.72)} 0%, ${alpha(theme.palette.grey[100], 0.5)} 100%)`,
                   backdropFilter: "blur(14px)",
@@ -354,7 +346,7 @@ const ExperimentInput = () => {
                 <FormControlLabel
                   control={
                     <Checkbox
-                      checked={hasEquity}
+                      checked={equityOnly}
                       onChange={handleEquityToggle}
                       disabled={equityActionLoading || runLoading}
                       size="small"
@@ -363,7 +355,7 @@ const ExperimentInput = () => {
                   }
                   label={
                     <Typography sx={{ fontWeight: 800, fontStyle: "italic", fontSize: 14 }}>
-                      Equity (Self-Financing)
+                      Only Equity (Self-Financing)
                     </Typography>
                   }
                   sx={{ m: 0 }}
@@ -461,7 +453,7 @@ const ExperimentInput = () => {
         }}
       >
         <DialogTitle sx={{ fontWeight: 900, fontStyle: "italic" }}>
-          Switch to Equity (Self-Financing)?
+          Switch to Only Equity (Self-Financing)?
         </DialogTitle>
         <DialogContent>
           <SchemeInfoBox schemeKey="equity" compact={false} />
@@ -470,7 +462,7 @@ const ExperimentInput = () => {
               ⚠ Selecting equity will remove the{" "}
               {fsItems.filter((x) => x.scheme_key !== "equity").length} other financing scheme
               {fsItems.filter((x) => x.scheme_key !== "equity").length !== 1 ? "s" : ""} currently
-              added to this experiment. Equity is mutually exclusive with all other schemes.
+              added to this experiment. Otherwise, equity stays selected together with any other schemes you add.
             </Typography>
           )}
         </DialogContent>

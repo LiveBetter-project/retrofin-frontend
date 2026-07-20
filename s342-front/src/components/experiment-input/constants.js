@@ -248,35 +248,35 @@ export const SCHEME_SECTIONS = [
 
 // Default values pre-filled when a scheme is first added
 export const SCHEME_DEFAULTS = {
-  bank_loan: { loan_amount: 50000, term_years: 10 },
+  bank_loan: { loan_amount: 48499, term_years: 10 },
   equity_crowdfunding: { platform_fee_percent: 0.04, crowd_share_percent: 0.4 },
   lending_crowdfunding: {
     platform_fee_percent: 0.04,
-    loan_amount: 50000,
-    term_years: 5,
+    loan_amount: 48499,
+    term_years: 10,
     fixed_interest_rate: 0.05,
   },
   royalty_crowdfunding: {
     platform_fee_percent: 0.04,
-    loan_amount: 50000,
-    term_years: 5,
+    loan_amount: 48499,
+    term_years: 10,
     fixed_interest_rate: 0.05,
   },
   epc_shared_savings: { esco_fee_percent: 0.3, term_years: 10 },
-  epc_guaranteed_savings: { guaranteed_savings_amount: 5000, term_years: 10 },
+  epc_guaranteed_savings: { guaranteed_savings_amount: 100, term_years: 10 },
   green_bond_loan: {
-    loan_amount: 100000,
-    term_years: 15,
+    loan_amount: 48499,
+    term_years: 10,
     fixed_interest_rate: 0.035,
-    maintenance_cost: 2000,
+    maintenance_cost: 100,
   },
   green_bond_bullet: {
-    loan_amount: 100000,
-    term_years: 15,
+    loan_amount: 48499,
+    term_years: 10,
     fixed_interest_rate: 0.035,
-    maintenance_cost: 2000,
+    maintenance_cost: 100,
   },
-  on_bill: { fixed_interest_rate: 0.05, term_years: 7 },
+  on_bill: { fixed_interest_rate: 0.05, term_years: 10 },
   operational_lease: { lease_payment: 500, term_years: 10 },
 };
 
@@ -296,10 +296,10 @@ export const emptyBuilding = {
   region: "Attica",
   year_of_construction: 2005,
   floor_area: 500,
-  eem_capex: 50000,
-  eem_energy_savings: 100,
-  eem_maintenance_cost: 2000,
-  eem_lifetime: 20,
+  eem_capex: 48500,
+  eem_energy_savings: 5737,
+  eem_maintenance_cost: 200,
+  eem_lifetime: 30,
 };
 
 // ---------------------------------------------------------------------------

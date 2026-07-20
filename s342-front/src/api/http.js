@@ -16,6 +16,15 @@ const AUTH_ENDPOINTS = [
 const isAuthEndpoint = (url = "") =>
   AUTH_ENDPOINTS.some((endpoint) => url.includes(endpoint));
 
+const PUBLIC_AUTH_ENDPOINTS = [
+  "/auth/login/",
+  "/auth/register/",
+  "/auth/refresh/",
+];
+
+const isPublicAuthEndpoint = (url = "") =>
+  PUBLIC_AUTH_ENDPOINTS.some((endpoint) => url.includes(endpoint));
+
 // prevent concurrent refresh races
 let refreshPromise = null;
 
@@ -43,6 +52,10 @@ const clearTokens = () => {
 
 // ensure requests always carry the current token
 axiosInstance.interceptors.request.use((config) => {
+  if (isPublicAuthEndpoint(config?.url || "")) {
+    return config;
+  }
+
   const token = localStorage.getItem("token");
   if (token) {
     config.headers = config.headers ?? {};
