@@ -6,15 +6,23 @@ import API from "../api/api";
 import { AppButton, FormError, PasswordInput, TextInput } from "../components";
 import "./Auth.css";
 
+// Always returns a string: FormError renders it as a React child, so an object
+// (e.g. the backend's { code, message, details } envelope) would crash the page.
 const extractError = (err, fallback) => {
   const data = err?.response?.data;
-  return (
-    data?.error ||
-    data?.detail ||
-    (typeof data === "string" ? data : null) ||
-    err?.message ||
-    fallback
+  const apiError = data?.error;
+
+  if (apiError && typeof apiError === "object") {
+    const details = Array.isArray(apiError.details) ? apiError.details : [];
+    const messages = details.map((d) => d?.message).filter(Boolean);
+    if (messages.length) return messages.join(" ");
+    if (typeof apiError.message === "string" && apiError.message) return apiError.message;
+  }
+
+  const candidate = [apiError, data?.detail, data, err?.message].find(
+    (v) => typeof v === "string" && v
   );
+  return candidate || fallback;
 };
 
 const Auth = () => {
